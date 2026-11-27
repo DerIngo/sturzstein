@@ -4,15 +4,55 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sturzstein</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <main>
-    <h1>Sturzstein</h1>
-    <p id="status" role="status">Leveldaten werden geladen …</p>
-    <p>Technische Grundlage – noch kein spielbarer Stand.</p>
+    <header>
+      <div><p class="eyebrow">Ein Funkeln in der Tiefe</p><h1>STURZSTEIN</h1></div>
+      <span class="tag">ERSTE HÖHLE · S04</span>
+    </header>
+    <section class="hud" aria-label="Spielstand">
+      <span class="level" id="level-name"></span>
+      <span class="stat">EDELSTEINE<strong id="gems">0 / 3</strong></span>
+      <span class="stat">RESTZEIT<strong id="time">2:00</strong></span>
+      <span class="stat">PUNKTE<strong id="score">0</strong></span>
+    </section>
+    <section id="stage" aria-label="Höhle">
+      <canvas id="board" tabindex="0" aria-label="Spielfeld. Mit Pfeiltasten oder WASD bewegen."></canvas>
+      <div class="overlay" id="overlay">
+        <section class="panel" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+          <h2 id="dialog-title">Willkommen in der Tiefe</h2>
+          <p id="dialog-text">Die Höhle wird vorbereitet …</p>
+          <div class="buttons">
+            <button type="button" class="primary" id="primary" disabled>Starten</button>
+            <button type="button" id="secondary" hidden>Zurück</button>
+          </div>
+        </section>
+      </div>
+    </section>
+    <div class="toolbar">
+      <p id="status" role="status">Leveldaten und eigene Grafiken werden geladen …</p>
+      <div class="buttons">
+        <button type="button" id="pause" disabled>Pause</button>
+        <button type="button" id="restart" disabled>Neustart</button>
+      </div>
+    </div>
+    <footer>
+      <kbd>↑ ↓ ← →</kbd> / <kbd>WASD</kbd> Bewegen ·
+      <kbd>Leertaste</kbd> / <kbd>Umschalt</kbd> + Richtung Graben ohne Bewegung ·
+      <kbd>Esc</kbd> / <kbd>P</kbd> Pause · <kbd>R</kbd> Neustart
+      <p class="scope">Spielbarer Zwischenstand: eine eigene Höhle. Gamepad, Rückspulen, Speicherung,
+        Gegner und weitere Level folgen in den nächsten Issues.</p>
+    </footer>
   </main>
   <script src="js/levels.js"></script>
   <script src="js/level-bundle.js"></script>
+  <script src="js/simulation.js"></script>
+  <script src="js/clock.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/renderer.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

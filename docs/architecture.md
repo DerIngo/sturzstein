@@ -5,7 +5,8 @@
 Dies ist der in S01 festgelegte Entwurf. Implementiert sind seit S02 Levelvalidator, native Beispieldaten,
 Datenbundle-Werkzeug, Browser-Startgerüst und Testwerkzeuge. Seit S03 ist die DOM-unabhängige
 Kernsimulation mit Grundelementen, Timer, Wertung und terminalen Zuständen implementiert.
-Die Browser-Spielanbindung und weiteren Mechaniken sind noch geplant.
+Seit S04 sind Canvas-Darstellung, Tick-Akkumulator, Tastatureingabe und der vollständige kleine
+Browser-Spielablauf implementiert. Die späteren Mechaniken und Komfortmodule bleiben geplant.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
 Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
@@ -32,7 +33,7 @@ Das ausgelieferte Spiel startet ohne Installation oder Build durch Öffnen von `
 Ein lokaler Webserver ist eine Alternative, keine Voraussetzung.
 Die mitgelieferten JSON-Quelldaten werden durch ein Entwicklungswerkzeug in ein klassisches
 Skript-Datenbundle überführt. Das Bundle wird mitgeliefert und nicht separat von Hand gepflegt.
-Zusätzliche Packs werden als Daten über Dateiauswahl und Browser File API importiert.
+Zusätzliche Packs werden ab S11 als Daten über Dateiauswahl und Browser File API importiert.
 Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-System vorgesehen.
 
 ## Module und Schnittstellen
@@ -40,7 +41,7 @@ Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-Syst
 Klassische Skripte registrieren ihre APIs unter `globalThis.Sturzstein`. Reine Module exportieren
 zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine transpilierten Quellen.
 
-| Datei/Bereich (geplant) | Vertrag |
+| Datei/Bereich (S02–S04) | Vertrag |
 |---|---|
 | `js/levels.js` | `parsePack(text, source)`, `validatePack(value, source)` liefern ein normalisiertes Pack oder werfen einen beschreibenden Fehler |
 | `js/simulation.js` | `createState(pack, levelId)` erzeugt einen neuen Zustand; `step(state, {direction, grab})` verändert ihn um genau einen Tick |
@@ -70,7 +71,7 @@ Ein JSON-serialisierbares Objekt enthält:
 
 Felsen/Edelsteine tragen `falling`. Die Daten enthalten keine DOM-Referenzen, Funktionen, Maps oder Sets.
 Kurzlebige Verarbeitungssätze innerhalb eines Ticks werden nicht gespeichert; Snapshots entstehen nur an Tickgrenzen.
-Die Anwendung hält zusätzlich `usedRewind`: Dieses Kennzeichen bleibt nach erster Nutzung gesetzt,
+Ab S07 hält die Anwendung zusätzlich `usedRewind`: Dieses Kennzeichen bleibt nach erster Nutzung gesetzt,
 auch wenn vor die Nutzung zurückgespult wird, und wird später mit der Partie gespeichert.
 
 Das Starten erzeugt den Zustand immer neu aus unveränderten Leveldaten. Replays speichern Tick-Eingaben
@@ -88,3 +89,17 @@ Ein Browser-Automationstool darf als reine Entwicklungsabhängigkeit hinzukommen
 Die Simulation wird mit kleinen Rasterfällen geprüft. Die Anwendung wird über tatsächliche Browserstarts
 geprüft, nicht allein über eine HTTP-Antwort. Browser-/Controllerstände und Einschränkungen werden
 im zugehörigen Issue festgehalten. Testbefehle werden erst nach Einrichtung als vorhanden dokumentiert.
+
+## Browserdarstellung und Zeitquelle (S04)
+
+`FixedClock` verwendet den monotonen Wert von `performance.now()` sowohl beim bewussten Start
+als auch beim Frame-Aufruf. Der rAF-Zeitstempel wird nicht mit diesem Wert vermischt:
+Firefox kann einen vor dem Startklick liegenden Frame-Zeitstempel liefern.
+Unterbrechungen über 250 ms pausieren statt mehrere Physikschritte unbemerkt nachzuholen.
+Fokus-/Sichtbarkeitswechsel pausieren unabhängig davon sofort. Beim Fortsetzen werden
+Zeitakkumulator und Eingabepuffer zurückgesetzt.
+
+Canvas-Backing-Store entspricht CSS-Größe mal Geräte-Pixeldichte. Sprites werden nur mit
+ganzzahligen Geräte-Pixel-Faktoren gezeichnet, Kameraversatz und interpolierte Positionen
+auf Geräte-Pixel gerundet. Die Kamera bleibt innerhalb der Weltgrenzen; kleine Höhlen sind zentriert.
+Overlay-Menüs und HUD sind DOM-Elemente, die Simulation bleibt davon unabhängig.

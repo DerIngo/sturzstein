@@ -68,6 +68,7 @@ Verifizierte Entwicklungsbefehle (Node.js 24 LTS):
 - `npm test`: DOM-unabhängige automatisierte Tests.
 - `npm run check`: JavaScript-Syntax und Abgleich des Levelbundles mit den JSON-Quellen.
 - `npm run bundle`: Levelbundle nach Änderungen an `levels/*.json` neu erzeugen.
+- `node tools/sprites.cjs`: die eigenen PNG-Sprites reproduzierbar neu erzeugen.
 - `npm run test:browser`: Playwright-Prüfungen in Chromium und Firefox, jeweils `file://` und HTTP.
   Zur Einrichtung ausschließlich der Entwicklungswerkzeuge: `npm ci` und
   `npx playwright install chromium firefox`.
