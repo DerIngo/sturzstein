@@ -114,10 +114,11 @@ Tastatureingaben und simulierte Controller, Tod, Neustart, Pause, Fokusereigniss
 Fenstergrößen/Pixeldichten und große Höhlen ab. Die Lösung liegt als getaktete Eingabefolge im
 Browsertest; das separate Replay-Dateiformat folgt in S06.
 S04 wurde nach lokaler Screenshot-Sichtprüfung und Nutzer-Spielabnahme freigegeben.
-Für S05 stehen der echte Controller-Spieltest und die Nutzerabnahme noch aus.
-Simulierte Gamepad-API-Tests ersetzen keine Controllerhardware. Für Windows 11 / Edge liegen
-die Rohbelegung und die bisherige Ablehnung des Competition Pro als Nutzerbericht vor;
-der Spieltest mit dem neuen Geräteprofil steht noch aus. Edge wird nicht automatisiert geprüft.
+S05 wurde am 27. November 2026 vom Nutzer mit echtem Competition Pro (040b:6533)
+unter Windows 11 / Edge freigegeben: Erkennung und Spielbetrieb sowie Pause beim Abziehen
+und bewusstes Fortsetzen nach Wiederanschließen ohne Neuladen wurden bestätigt.
+Diese Hardwareabnahme gilt für die genannte Kombination; simulierte Gamepad-API-Tests
+ersetzen keine weiteren Hardwaretests. Edge wird nicht automatisiert geprüft.
 
 ## Leveldaten und Architektur
 
