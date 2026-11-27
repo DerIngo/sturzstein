@@ -15,10 +15,16 @@ Der Nutzer hat am 27. November 2026 für dieses Projekt ausdrücklich erlaubt:
 - Die fünf geplanten Meilensteine M1 bis M5 anlegen und verwalten sowie Issues zuordnen.
   Keine Termine erfinden.
 
+Am 27. November 2026 wurde zusätzlich die Einrichtung von GitHub Pages für dieses Repository
+freigegeben: Veröffentlichung aus `main`, Verzeichnis `/`, unter der GitHub-Standardadresse.
+Pushes auf `main` aktualisieren damit automatisch die öffentliche Spielversion.
+Diese Freigabe umfasst keine eigenen CI-Workflows, Domains oder weiteren Repository-Einstellungen.
+
 Alle weiteren schreibenden GitHub-Aktionen benötigen vorherige Zustimmung, sofern sie nicht
 später ausdrücklich vorab freigegeben werden. Dazu gehören insbesondere
 Projects, Pull Requests und Merges, Actions-Konfiguration,
-Pages, Releases sowie Repository-Einstellungen. Nur lesende Bestandsprüfungen sind davon nicht betroffen.
+weitere Pages-Konfigurationsänderungen, Releases sowie Repository-Einstellungen.
+Nur lesende Bestandsprüfungen sind davon nicht betroffen.
 Keine destruktiven Aktionen oder History-Umschreibungen aus der Commit-/Push-Freigabe ableiten.
 Issue-Löschungen, Repository-Löschung/-Übertragung, Änderungen an Sichtbarkeit, Zugriffsrechten,
 Secrets oder Schutzregeln sowie kostenpflichtige Dienste sind nicht vorab freigegeben.

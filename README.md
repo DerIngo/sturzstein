@@ -14,9 +14,14 @@ Pack-Import und die vollständige Kampagne sind noch nicht implementiert.
 
 ## Start
 
+**Online spielen:** https://deringo.github.io/sturzstein/
+
 `index.html` direkt im Browser öffnen. Es werden keine Pakete, kein Build und kein Server benötigt.
 Alternativ im Projektordner `python3 -m http.server 8000 --bind 127.0.0.1` starten und
 `http://127.0.0.1:8000` aufrufen. Zum Beenden des Servers Strg+C drücken.
+
+GitHub Pages veröffentlicht den Repository-Stamm von `main` automatisch nach Pushes.
+`.nojekyll` sorgt für unveränderte statische Dateien; ein eigener Build-Workflow ist nicht erforderlich.
 
 ## Erste Höhle spielen
 
