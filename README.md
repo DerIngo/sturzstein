@@ -9,9 +9,10 @@ Der spielbare Stand enthält eine eigene Höhle mit Graben, Sammeln, Schieben,
 Fall-/Abrollphysik, Zeitlimit, Sieg/Niederlage, Pause und Neustart.
 Seit S05 sind Standard-Gamepads und der Competition Pro (040b:6533) sowie geräteabhängige Bedienhinweise integriert.
 Seit S06 werden Partien als tickgenaue Replays aufgezeichnet und können heruntergeladen und geprüft werden.
+Seit S07 lässt sich der vollständige Spielzustand mindestens zehn Sekunden zurückspulen, auch nach einer Niederlage.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
-Rückspulen (S07), Speicherung (S08), Gegner/Sondermechaniken,
+Speicherung (S08), Gegner/Sondermechaniken,
 Pack-Import und die vollständige Kampagne sind noch nicht implementiert.
 
 ## Start
@@ -40,6 +41,7 @@ Die schmale Mittelwand endet unten: Der Weg in die rechte Höhlenhälfte führt 
 | Pause/Fortsetzen | Esc oder P |
 | Neustart | R; bei laufender Partie mit Bestätigung |
 | Start/erneuter Versuch | Enter auf dem jeweiligen Knopf |
+| Rückspulen im Spiel und nach Niederlage | Z oder U halten |
 
 Menüknöpfe sind auch per Maus und Tab bedienbar. Beim Fokus-/Tabverlust oder einer längeren
 Unterbrechung wird automatisch pausiert; erst bewusste Bestätigung setzt das Spiel fort.
@@ -58,6 +60,7 @@ Andere unbekannte Mappings werden ausdrücklich gemeldet statt geraten.
 | Graben/Sammeln ohne Bewegung | A halten und Richtung |
 | Menüknopf betätigen | A |
 | Zurück / Neustartdialog abbrechen | B |
+| Rückspulen im Spiel und nach Niederlage | B halten |
 | Pause/Fortsetzen | Start |
 | Neustart mit Bestätigung | Y |
 
@@ -67,20 +70,42 @@ Die Belegung basiert auf den vom Nutzer unter Windows 11 / Edge gemeldeten Achse
 | Knopf | Aktion |
 |---|---|
 | Links groß (B0) | Bestätigen; im Spiel halten und Richtung zum Graben |
-| Rechts groß (B1) | Zurück/Abbrechen; im Spiel Rückspulen (folgt in S07) |
+| Rechts groß (B1) | Im Spiel/nach Niederlage halten: Rückspulen; sonst Zurück/Abbrechen |
 | Links klein (B2) | Neustart mit Bestätigung |
 | Rechts klein (B3) | Pause/Fortsetzen |
 
 Nach einem Bildschirmwechsel gehaltene Tasten/Stick erst loslassen, bevor die nächste Aktion erfolgt.
 Bei diagonaler Stickstellung gewinnt die stärkere Achse; die Deadzone verhindert kleine unbeabsichtigte
 Bewegungen. Beim Trennen des aktiv benutzten Controllers pausiert das Spiel.
+Nach dem Wiederanschließen zuerst alle Tasten und den Stick loslassen, dann bewusst fortsetzen.
 Tastatur, Maus und Controller lassen sich ohne Neuladen wechseln; die Hinweise passen sich an.
 Menüauswahl funktioniert auch per Pfeiltasten/WASD; gehaltene Richtungen wiederholen kontrolliert.
 
 Bei fehlender/blockierter Gamepad-API erscheinen Hinweise unter dem Spielfeld. Insbesondere bei
 Einschränkungen unter `file://` den lokalen Webserver oder die HTTPS-Seite verwenden.
-Die Tastatur bleibt nutzbar. Rückspulen (Z/U bzw. B im Spiel) und Ton (M) liefern bereits abstrakte
-Aktionen, zeigen derzeit aber ausdrücklich an, dass die Funktionen erst in S07/S14 hinzukommen.
+Die Tastatur bleibt nutzbar. Die Tonaktion (M) ist vorbereitet und meldet ausdrücklich,
+dass Soundeffekte und Tonsteuerung erst in S14 hinzukommen.
+
+## Rückspulen
+
+Z/U, am Standard-Gamepad B oder am Competition Pro den großen rechten Knopf halten.
+Das funktioniert während des Spiels und nach Tod/Zeitablauf; nach dem Loslassen geht es am
+wiederhergestellten Punkt weiter. Im Pause-/Neustart-/Siegmenü bleibt B die Zurück-Aktion.
+Rückspulen läuft mit einem Simulationstick pro 100 ms; Richtungseingaben werden dabei nicht ausgeführt.
+
+Das HUD zeigt den verfügbaren Verlauf. Nach ausreichend Vorlauf sind mindestens zehn Sekunden
+verfügbar; davor nur die bereits gespielte Zeit. Am ältesten verfügbaren Punkt bleibt die Welt
+bis zum Loslassen stehen. Es gibt keinen Vorwärtssprung in die verworfene Zukunft.
+Spielfeld, Zeit, Zähler, Punkte, Zufallszustand und alle Objektzustände werden gemeinsam wiederhergestellt.
+Fokusverlust oder Controllertrennung pausiert auch während des Rückspulens.
+
+Nach dem ersten tatsächlich rückgängig gemachten Tick bleibt der Lauf als **„Mit Rückspulen“**
+gekennzeichnet – auch beim Rückspulen bis zum Anfang. Erst ein Neustart setzt Kennzeichnung und
+Verlauf zurück. Die Replaydatei enthält nur die resultierende Eingabefolge und bewahrt die Kennzeichnung.
+Persistente Spielstände und getrennte Bestwerte folgen in S08.
+Der Verlauf hält höchstens elf vollständige Zustände und 109 Eingaben; Details und Speichermessung
+stehen in der [Architektur](docs/architecture.md#rückspulverlauf-s07).
+Der echte Rückspul-Spieltest unter Windows 11 / Edge mit dem Competition Pro steht noch aus.
 
 ## Entwicklung und Prüfungen
 
@@ -163,6 +188,7 @@ Historische Referenzen und deren Lizenzgrenzen stehen im Rechercheabschnitt von 
 | `js/level-bundle.js` | Generierte integrierte Leveldaten |
 | `js/simulation.js` | DOM-unabhängige deterministische Regeln |
 | `js/replay.js`, `replays/` | Tick-Aufzeichnung, Replayformat/-prüfung und mitgelieferte Lösungen |
+| `js/rewind.js` | Begrenzter Zustandsverlauf und tickgenaue Wiederherstellung |
 | `js/clock.js` | Tick-Akkumulator |
 | `js/input.js`, `js/gamepad.js` | Einheitliche Aktionen, Tastatur-/Gamepadzustand und Gerätewechsel |
 | `js/renderer.js`, `assets/` | Pixelgenaue Canvas-Darstellung und eigene PNG-Sprites |

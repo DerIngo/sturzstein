@@ -10,7 +10,7 @@ function check(pack, filename, levelId) {
   const replay = Replay.parseReplay(fs.readFileSync(filename, "utf8"), filename);
   if (levelId && replay.levelId !== levelId) throw new Error(`${filename}: Falsche Level-ID; erwartet ${levelId}.`);
   const result = Replay.play(pack, replay);
-  console.log(`SIEG ${replay.packId}/${replay.levelId}: ${result.ticks} Ticks, ${result.remainingSeconds.toFixed(1)} Sekunden Restzeit, ${result.state.score} Punkte.`);
+  console.log(`SIEG ${replay.packId}/${replay.levelId}: ${result.ticks} Ticks, ${result.remainingSeconds.toFixed(1)} Sekunden Restzeit, ${result.state.score} Punkte (${result.usedRewind ? "mit" : "ohne"} Rückspulen).`);
 }
 
 try {

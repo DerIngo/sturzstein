@@ -151,6 +151,22 @@ test("Aktiver Controllerverlust meldet einmal und leert alle Aktionen", () => {
   assert.deepEqual(input.sample(), { direction: null, grab: false, rewind: false });
 });
 
+test("Wiederanschließen mit gehaltener Rückspultaste setzt die Trennungspause nicht fort", () => {
+  const { p, input, remove, setPads } = controller();
+  button(p, 1);
+  input.poll("play");
+  remove();
+  input.poll("play");
+  input.clear();
+  input.poll("menu");
+  setPads([p]);
+  assert.equal(input.poll("menu"), null);
+  button(p, 1, false);
+  input.poll("menu");
+  button(p, 0);
+  assert.equal(input.poll("menu").command, "confirm");
+});
+
 test("Andere Controller trennen pausiert nicht; neue Geräte funktionieren ohne Neuladen", () => {
   const { p, input, setPads, disconnects } = controller();
   const second = pad(2);
@@ -163,6 +179,8 @@ test("Andere Controller trennen pausiert nicht; neue Geräte funktionieren ohne 
   input.poll("menu");
   assert.equal(disconnects(), 1);
   setPads([p]);
+  button(p, 0, false);
+  input.poll("menu");
   button(p, 0);
   assert.equal(input.poll("menu").command, "confirm");
 });
@@ -267,17 +285,36 @@ test("Menünavigation wiederholt kontrolliert statt pro Renderframe", () => {
   assert.deepEqual(commands.at(-1), ["navigate", "up"]);
 });
 
-test("Rückspulen/Ton sind abstrakte Aktionen, keine vorgetäuschten Funktionen", () => {
+test("Rückspulen/Ton sind abstrakte Aktionen; gehaltenes Rückspulen ist separat abfragbar", () => {
   const { input, key, commands, handlers } = manager();
   input.setContext("play");
   key("KeyZ");
   assert.equal(input.sample().rewind, true);
+  assert.equal(input.rewinding(), true);
   handlers.keyup({ code: "KeyZ" });
   key("KeyU");
   key("KeyM");
   assert.deepEqual(commands, [["rewind"], ["rewind"], ["mute"]]);
   input.clear();
   assert.equal(input.sample().rewind, false);
+  assert.equal(input.rewinding(), false);
+});
+
+test("Niederlage erlaubt B-Rückspulen; Kontextwechsel erhält nur bewusst die gehaltene Aktion", () => {
+  const { input, p, commands } = manager();
+  input.setContext("lost");
+  button(p, 1);
+  input.update(0);
+  assert.deepEqual(commands, [["rewind"]]);
+  input.setContext("play", { preserveHeld: true });
+  assert.equal(input.rewinding(), true);
+  button(p, 1, false);
+  input.update(16);
+  assert.equal(input.rewinding(), false);
+  button(p, 1);
+  input.update(32);
+  input.setContext("menu");
+  assert.equal(input.rewinding(), false);
 });
 
 test("Fokusunterbrechung verlangt Loslassen, auch bei zuvor neutralem Controller", () => {

@@ -20,6 +20,7 @@
   let lastFrame = 0;
   let focused = true;
   let recorder;
+  let history;
 
   function menuButtons() {
     return [primary, secondary, replayExport].filter((button) => !button.hidden && !button.disabled);
@@ -27,11 +28,12 @@
 
   function show(next, message = "") {
     screen = next;
-    input?.setContext(next === "playing" ? "play" : "menu");
-    overlay.hidden = next === "playing";
-    get("pause").disabled = !["playing", "paused"].includes(next);
+    input?.setContext(["playing", "rewinding"].includes(next) ? "play" : next === "lost" ? "lost" : "menu",
+      { preserveHeld: next === "rewinding" });
+    overlay.hidden = ["playing", "rewinding"].includes(next);
+    get("pause").disabled = !["playing", "rewinding", "paused"].includes(next);
     get("pause").textContent = next === "paused" ? "Fortsetzen" : "Pause";
-    get("restart").disabled = ["loading", "start", "error", "confirm"].includes(next);
+    get("restart").disabled = ["loading", "start", "error", "confirm", "rewinding"].includes(next);
     primary.disabled = next === "error" || next === "loading";
     secondary.hidden = next !== "confirm";
     replayExport.hidden = !["paused", "won", "lost"].includes(next);
@@ -41,7 +43,7 @@
       paused: ["Pause", message || "Die Höhle wartet. Zeit und Physik sind angehalten.", "Fortsetzen"],
       confirm: ["Neu beginnen?", "Die aktuelle Partie wird verworfen. Dieselbe Höhle startet mit voller Zeit neu.", "Neu starten"],
       won: ["Ausgang erreicht!", `Du hast die Höhle geschafft. ${state?.score || 0} Punkte – gut gemacht!`, "Noch einmal"],
-      lost: ["Verschüttet?", state?.reason || "Diese Runde ist vorbei.", "Erneut versuchen"],
+      lost: ["Verschüttet?", `${state?.reason || "Diese Runde ist vorbei."} Z/U oder die Controller-Rückspultaste halten, um zurückzugehen.`, "Erneut versuchen"],
       error: ["Start nicht möglich", message, "Nicht verfügbar"],
     };
     if (dialogs[next]) {
@@ -50,7 +52,7 @@
       get("dialog-text").textContent = text;
       primary.textContent = label;
     }
-    if (next === "playing") {
+    if (next === "playing" || next === "rewinding") {
       clock.reset(performance.now());
       canvas.focus();
     } else if (next === "confirm") {
@@ -58,23 +60,28 @@
     } else if (!primary.disabled) {
       primary.focus();
     }
+    if (state) updateHud();
   }
   function updateHud() {
     get("gems").textContent = `${state.collected} / ${state.quota}`;
     const seconds = Math.ceil(state.remainingTicks / 10);
     get("time").textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
     get("score").textContent = String(state.score);
-    status.textContent = state.collected >= state.quota
+    get("rewind-time").textContent = `${((history?.availableTicks || 0) * app.Simulation.TICK_MS / 1000).toFixed(1).replace(".", ",")} s`;
+    get("rewind-status").textContent = `${recorder?.replay.usedRewind ? "Mit Rückspulen" : "Ohne Rückspulen"} · Z/U oder Controller-Rückspultaste halten, auch nach einer Niederlage.`;
+    status.textContent = screen === "rewinding"
+      ? history.availableTicks ? "Rückspulen … Zum Weiterspielen loslassen." : "Anfang des verfügbaren Verlaufs erreicht. Zum Weiterspielen loslassen."
+      : state.collected >= state.quota
       ? "Die Quote ist erfüllt. Der grün leuchtende Ausgang ist offen!"
       : `Noch ${state.quota - state.collected} Edelsteine bis zum offenen Ausgang.`;
   }
   function restart() {
     state = app.Simulation.createState(pack, level.id);
     recorder = new app.Replay.Recorder(pack, level.id);
+    history = new app.Rewind.RewindHistory(state);
     get("feature-notice").textContent = "";
     previous = structuredClone(state);
     renderer.reset();
-    updateHud();
     show("playing");
   }
   function confirm() {
@@ -95,10 +102,15 @@
       else confirm();
       return;
     }
-    if (action === "rewind" || action === "mute") {
-      get("feature-notice").textContent = action === "rewind"
-        ? "Rückspulen ist vorbereitet und folgt in S07; diese Version spult noch nicht zurück."
-        : "Tonsteuerung ist vorbereitet und folgt mit den Soundeffekten in S14.";
+    if (action === "rewind") {
+      if (["playing", "lost"].includes(screen)) {
+        get("feature-notice").textContent = "";
+        show("rewinding");
+      }
+      return;
+    }
+    if (action === "mute") {
+      get("feature-notice").textContent = "Tonsteuerung ist vorbereitet und folgt mit den Soundeffekten in S14.";
       return;
     }
     if (action === "restart" && ["playing", "paused"].includes(screen)) {
@@ -111,7 +123,7 @@
     } else if (action === "escape" && ["won", "lost"].includes(screen)) {
       show("start");
     } else if (["escape", "pause"].includes(action)) {
-      if (screen === "playing") show("paused");
+      if (screen === "playing" || screen === "rewinding") show(state.status === "playing" ? "paused" : state.status);
       else if (screen === "paused") show("playing");
     }
   }
@@ -123,8 +135,9 @@
   function frame(now) {
     try {
       if (focused && !document.hidden) input.update(performance.now());
+      if (screen === "rewinding" && !input.rewinding()) show(state.status === "playing" ? "playing" : state.status);
       // Gleiche Zeitquelle wie reset(): Firefox kann ältere rAF-Zeitstempel liefern.
-      const alpha = clock.frame(performance.now(), screen === "playing");
+      const alpha = clock.frame(performance.now(), screen === "playing" || screen === "rewinding");
       renderer.draw(state, previous, screen === "playing" ? alpha : 1, now - lastFrame);
       lastFrame = now;
     } catch (error) {
@@ -134,7 +147,9 @@
     requestAnimationFrame(frame);
   }
   function pauseForInterruption() {
-    if (screen === "playing") show("paused", "Das Spiel wurde wegen einer Unterbrechung pausiert. Setze bewusst fort.");
+    if (screen === "playing" || screen === "rewinding") {
+      show(state.status === "playing" ? "paused" : state.status, "Das Spiel wurde wegen einer Unterbrechung pausiert. Setze bewusst fort.");
+    }
     input?.suspend();
   }
   window.addEventListener("blur", () => { focused = false; pauseForInterruption(); });
@@ -189,24 +204,38 @@
       onDevice(device, profile) {
         get("input-hints").textContent = device === "gamepad"
           ? profile === "competition-pro"
-            ? "Competition Pro: Joystick bewegen · Links groß + Richtung graben · Rechts klein Pause · Links klein Neustart · Links groß bestätigen · Rechts groß zurück / im Spiel Rückspulen (S07)"
-            : "Gamepad: Steuerkreuz / linker Stick bewegen · A + Richtung graben · Start Pause · Y Neustart · A bestätigen · B zurück"
-          : `${device === "mouse" ? "Maus: Menüs anklicken. " : ""}Tastatur: Pfeile / WASD bewegen · Leertaste / Umschalt + Richtung graben · Esc / P Pause · R Neustart · Enter bestätigen`;
+            ? "Competition Pro: Joystick bewegen · Links groß + Richtung graben · Rechts klein Pause · Links klein Neustart · Links groß bestätigen · Rechts groß im Spiel / nach Niederlage halten: Rückspulen; sonst zurück"
+            : "Gamepad: Steuerkreuz / linker Stick bewegen · A + Richtung graben · Start Pause · Y Neustart · A bestätigen · B im Spiel / nach Niederlage halten: Rückspulen; sonst zurück"
+          : `${device === "mouse" ? "Maus: Menüs anklicken. " : ""}Tastatur: Pfeile / WASD bewegen · Leertaste / Umschalt + Richtung graben · Z/U halten: Rückspulen · Esc / P Pause · R Neustart · Enter bestätigen`;
       },
       onStatus(message) { get("gamepad-status").textContent = message; },
       onDisconnect() {
-        if (screen === "playing") show("paused", "Der aktive Controller wurde getrennt. Verbinde ihn erneut oder nutze die Tastatur.");
+        if (screen === "playing" || screen === "rewinding") {
+          show(state.status === "playing" ? "paused" : state.status, "Der aktive Controller wurde getrennt. Verbinde ihn erneut oder nutze die Tastatur.");
+        }
       },
     });
     clock = new app.FixedClock(() => {
+      if (screen === "rewinding") {
+        const restored = history.back();
+        if (restored) {
+          state = restored;
+          recorder.truncate(state.tick);
+          previous = structuredClone(state);
+          renderer.reset();
+          updateHud();
+        }
+        return;
+      }
       if (screen !== "playing") return;
       previous = structuredClone(state);
-      app.Simulation.step(state, recorder.record(input.sample()));
+      const command = recorder.record(input.sample());
+      app.Simulation.step(state, command);
+      history.push(state, command);
       updateHud();
       if (state.status !== "playing") show(state.status);
     }, pauseForInterruption);
     get("level-name").textContent = `01 · ${level.name}`;
-    updateHud();
     show("start");
     requestAnimationFrame(frame);
   }

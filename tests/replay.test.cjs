@@ -55,7 +55,7 @@ test("Pack-/Levelidentität, Revision, Regelversion und Anfangsseed werden nicht
     ["levelId", "fehlt", /Unbekanntes Level/],
     ["levelRevision", 2, /levelRevision.*inkompatibel/],
     ["ruleVersion", 2, /ruleVersion.*Version/],
-    ["formatVersion", 2, /formatVersion.*Version/],
+    ["formatVersion", 3, /formatVersion.*Version/],
     ["seed", 0, /seed.*inkompatibel/],
   ]) {
     assert.throws(() => Replay.play(pack, { ...solution, [field]: value }), message);
@@ -119,7 +119,7 @@ test("CLI prüft alle Beispiele oder ein Dateipaar; Fehler ergeben Exitstatus 1"
   fs.writeFileSync(filename, JSON.stringify(solution));
   assert.equal(run(["levels/einstieg.json", filename]).status, 0);
   for (const value of [
-    { ...solution, formatVersion: 2 },
+    { ...solution, formatVersion: 3 },
     { ...solution, inputs: [] },
     { ...solution, inputs: [{ ticks: 1200, direction: null, grab: false }] },
   ]) {
@@ -133,4 +133,16 @@ test("CLI prüft alle Beispiele oder ein Dateipaar; Fehler ergeben Exitstatus 1"
   assert.equal(run(["levels/einstieg.json", filename]).status, 1);
   assert.equal(run(["levels/einstieg.json", path.join(directory, "fehlt.json")]).status, 1);
   assert.equal(run(["nur-ein-argument"]).status, 1);
+});
+
+test("Replayformat 2 kennzeichnet Rückspulen; Format 1 wird ohne Rückspulen übernommen", () => {
+  const legacy = Replay.validateReplay(solution);
+  assert.equal(legacy.formatVersion, 2);
+  assert.equal(legacy.usedRewind, false);
+  assert.deepEqual(Replay.play(pack, legacy), Replay.play(pack, solution));
+  assert.throws(() => Replay.validateReplay({ ...solution, formatVersion: 2 }), /usedRewind.*Pflichtfeld/);
+  assert.throws(() => Replay.validateReplay({ ...legacy, usedRewind: "false" }), /usedRewind.*Boolescher/);
+  const assisted = { ...legacy, usedRewind: true };
+  assert.equal(Replay.play(pack, assisted).usedRewind, true);
+  assert.equal(Replay.parseReplay(Replay.stringifyReplay(assisted)).usedRewind, true);
 });

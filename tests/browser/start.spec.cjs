@@ -34,6 +34,13 @@ async function observeSimulation(page) {
         return state;
       },
     };
+    const history = window.Sturzstein.Rewind.RewindHistory.prototype;
+    const originalBack = history.back;
+    history.back = function () {
+      const state = originalBack.call(this);
+      if (state) window.testState = structuredClone(state);
+      return state;
+    };
   });
 }
 
@@ -42,6 +49,16 @@ async function advanceTicks(page, count) {
   await page.clock.runFor(Math.max(0, count * 100 - 16));
   for (let attempt = 0; attempt < 4; attempt++) {
     if (await page.evaluate(() => window.testState.tick) >= target) break;
+    await page.clock.runFor(16);
+  }
+  expect(await page.evaluate(() => window.testState.tick)).toBe(target);
+}
+
+async function rewindTicks(page, count) {
+  const target = await page.evaluate(() => window.testState.tick) - count;
+  await page.clock.runFor(Math.max(0, count * 100 - 16));
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (await page.evaluate(() => window.testState.tick) <= target) break;
     await page.clock.runFor(16);
   }
   expect(await page.evaluate(() => window.testState.tick)).toBe(target);
@@ -65,6 +82,19 @@ test.beforeAll(async () => {
   origin = `http://127.0.0.1:${server.address().port}`;
 });
 test.afterAll(async () => { await new Promise((resolve) => server.close(resolve)); });
+
+test("Fehler vor dem ersten Simulationszustand bleiben ohne HUD-Folgefehler sichtbar", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route("**/js/level-bundle.js", (route) => route.fulfill({
+    contentType: "text/javascript", body: "globalThis.Sturzstein.packs = [{}];",
+  }));
+  await page.goto(origin);
+  await expect(page.locator("#dialog-title")).toHaveText("Start nicht möglich");
+  await expect(page.locator("#status")).toContainText("Pflichtfeld fehlt");
+  await expect(page.locator("#primary")).toBeDisabled();
+  expect(errors).toEqual([]);
+});
 
 for (const protocol of ["file", "http"]) {
   test(`startet über ${protocol} ohne externe Anfragen`, async ({ page }) => {
@@ -149,6 +179,69 @@ for (const protocol of ["file", "http"]) {
     await ticks(null, 1);
     expect(await page.evaluate(() => window.testState.remainingTicks)).toBe(1199);
     expect(errors).toEqual([]);
+  });
+
+  test(`Rückspulen über ${protocol}: zehn Sekunden, Niederlage, Replay-Verzweigung und Fokusverlust`, async ({ page }) => {
+    await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
+    await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
+    await expect(page.locator("#primary")).toBeEnabled();
+    await observeSimulation(page);
+    await page.locator("#primary").click();
+    await page.keyboard.down("KeyZ");
+    await page.clock.runFor(1000);
+    expect(await page.evaluate(() => window.testState.tick)).toBe(0);
+    await expect(page.locator("#rewind-status")).toContainText("Ohne Rückspulen");
+    await page.keyboard.up("KeyZ");
+    await page.clock.runFor(16);
+    await advanceTicks(page, 10);
+    const early = await page.evaluate(() => window.testState);
+    await advanceTicks(page, 100);
+    async function move(direction, ticks) {
+      const key = { right: "ArrowRight", down: "ArrowDown", left: "ArrowLeft", up: "ArrowUp" }[direction];
+      await page.keyboard.down(key);
+      await advanceTicks(page, ticks);
+      await page.keyboard.up(key);
+    }
+    await move("right", 3);
+    await move("down", 1);
+    await expect(page.locator("#gems")).toHaveText("1 / 3");
+    await page.keyboard.down("KeyU");
+    await rewindTicks(page, 104);
+    expect(await page.evaluate(() => window.testState)).toEqual(early);
+    await expect(page.locator("#rewind-time")).toHaveText("0,0 s");
+    await expect(page.locator("#rewind-status")).toContainText("Mit Rückspulen");
+    await page.clock.runFor(500);
+    expect(await page.evaluate(() => window.testState)).toEqual(early);
+    await page.keyboard.up("KeyU");
+    await page.clock.runFor(16);
+    for (const input of solution.inputs) await move(input.direction, input.ticks);
+    await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
+    const replay = await downloadReplay(page);
+    expect(replay.usedRewind).toBe(true);
+    expect(Replay.play(pack, replay).state).toEqual(await page.evaluate(() => window.testState));
+    await page.locator("#primary").click();
+    await expect(page.locator("#rewind-status")).toContainText("Ohne Rückspulen");
+    await expect(page.locator("#rewind-time")).toHaveText("0,0 s");
+    for (const [direction, count] of [["right", 1], ["down", 4], ["right", 1], ["down", 1]]) await move(direction, count);
+    const beforeDeath = await page.evaluate(() => window.testState);
+    await advanceTicks(page, 1);
+    await expect(page.locator("#dialog-title")).toHaveText("Verschüttet?");
+    await page.keyboard.down("KeyZ");
+    await rewindTicks(page, 1);
+    expect(await page.evaluate(() => window.testState)).toEqual(beforeDeath);
+    await expect(page.locator("#overlay")).toBeHidden();
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    await page.clock.runFor(2000);
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.clock.runFor(200);
+    expect(await page.evaluate(() => window.testState)).toEqual(beforeDeath);
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    await page.keyboard.up("KeyZ");
+    await page.locator("#primary").click();
+    await move("left", 1);
+    expect(await page.evaluate(() => window.testState.status)).toBe("playing");
   });
 
   for (const profile of ["standard", "competition-pro"]) test(`Simuliertes Gamepad ${profile} über ${protocol}: Spiel, Menüs und Hotplugging`, async ({ page }) => {
@@ -269,13 +362,43 @@ for (const protocol of ["file", "http"]) {
     await expect(page.locator("#overlay")).toBeHidden();
     await press([]);
     await press([1]);
-    await expect(page.locator("#feature-notice")).toContainText("folgt in S07");
+    await page.clock.runFor(120);
+    await expect(page.locator("#rewind-status")).toContainText("Mit Rückspulen");
     await press([]);
     await page.keyboard.press("KeyM");
     await expect(page.locator("#feature-notice")).toContainText("S14");
     await expect(page.locator("#input-hints")).toContainText("Tastatur");
     await page.locator("#pause").click();
     await expect(page.locator("#input-hints")).toContainText("Maus");
+
+    await page.locator("#restart").click();
+    await page.locator("#primary").click();
+    await press([]);
+    for (const [direction, count] of [[15, 1], [13, 4], [15, 1], [13, 1]]) {
+      await setButtons([direction]);
+      await advanceTicks(page, count);
+    }
+    await setButtons([]);
+    await advanceTicks(page, 1);
+    await expect(page.locator("#dialog-title")).toHaveText("Verschüttet?");
+    await press([]);
+    await press([1]);
+    await rewindTicks(page, 1);
+    await expect(page.locator("#overlay")).toBeHidden();
+    expect(await page.evaluate(() => window.testState.status)).toBe("playing");
+    await expect(page.locator("#rewind-status")).toContainText("Mit Rückspulen");
+    await page.evaluate(() => { window.fakePads = []; });
+    await page.clock.runFor(32);
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    const afterRewindDisconnect = await page.evaluate(() => window.testState);
+    await page.clock.runFor(500);
+    expect(await page.evaluate(() => window.testState)).toEqual(afterRewindDisconnect);
+    await page.evaluate(() => { window.fakePads = [window.fakePad]; });
+    await page.clock.runFor(200);
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    await press([]);
+    await press([0]);
+    await expect(page.locator("#overlay")).toBeHidden();
   });
 }
 

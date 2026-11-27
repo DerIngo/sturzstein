@@ -9,6 +9,7 @@ Seit S04 sind Canvas-Darstellung, Tick-Akkumulator, Tastatureingabe und der voll
 Browser-Spielablauf implementiert. Die späteren Mechaniken und Komfortmodule bleiben geplant.
 S05 ergänzt Standard-Gamepads, ein Competition-Pro-Profil, Gerätewechsel und einheitliche Menü-/Spielaktionen.
 S06 ergänzt tickgenaue Browseraufzeichnung, JSON-Export und eine DOM-unabhängige Replay-Lösungsprüfung.
+S07 ergänzt begrenzten Rückspulverlauf, Wiederherstellung nach Niederlage und verzweigte Replays.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
 Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
@@ -43,20 +44,21 @@ Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-Syst
 Klassische Skripte registrieren ihre APIs unter `globalThis.Sturzstein`. Reine Module exportieren
 zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine transpilierten Quellen.
 
-| Datei/Bereich (S02–S06) | Vertrag |
+| Datei/Bereich (S02–S07) | Vertrag |
 |---|---|
 | `js/levels.js` | `parsePack(text, source)`, `validatePack(value, source)` liefern ein normalisiertes Pack oder werfen einen beschreibenden Fehler |
 | `js/simulation.js` | `createState(pack, levelId)` erzeugt einen neuen Zustand; `step(state, {direction, grab})` verändert ihn um genau einen Tick |
-| `js/replay.js` | Versionierte Replayvalidierung, `Recorder.record(input)` und `play(pack, replay)` über dieselbe Simulation |
+| `js/replay.js` | Versionierte Replayvalidierung, `Recorder.record(input)`, `truncate(tick)` und `play(pack, replay)` über dieselbe Simulation |
+| `js/rewind.js` | `RewindHistory.push(state, input)` speichert Tickgrenzen; `back()` stellt den vorherigen Gesamtzustand wieder her |
 | `js/clock.js` | Fester 100-ms-Akkumulator; rendert beliebig oft, pausiert bei Unterbrechungen statt große Sprünge nachzuholen |
-| `js/input.js` | `InputManager.update(now)` für geräteübergreifende Menüaktionen; `sample()` liefert Richtung, `grab` und vorbereitetes `rewind` pro Tick |
+| `js/input.js` | `InputManager.update(now)` für Menüaktionen; `sample()` liefert Tick-Eingaben, `rewinding()` liest die Halteaktion ohne Eingabepuffer zu verbrauchen |
 | `js/gamepad.js` | Standard-Mapping, Deadzone, Tastenkanten, Polling, Hotplugging und sichtbare API-Fehler |
 | `js/renderer.js` | Zeichnet Zustand und vorherigen Zustand mit Interpolationsfaktor; verändert weder Simulation noch Zufall |
 | `js/main.js` | Verbindet Module mit Browser, HUD, Pause und später Bildschirmverwaltung |
 | `levels/*.json`, `js/level-bundle.js` | Maßgebliche Textdaten und generiertes, mitgeliefertes Bundle |
 | `tools/`, `tests/` | Bundle-/Asset-Erzeugung und automatisierte Prüfungen |
 
-Später kommen Rückspul-, Speicher- und Audiomodule mit eigenen Verantwortlichkeiten hinzu.
+Später kommen Speicher- und Audiomodule mit eigenen Verantwortlichkeiten hinzu.
 Sie werden nicht durch leere Platzhalter vorweggenommen. Spielerische Pause gehört zur Anwendung,
 nicht als Echtzeitquelle in die Simulation. Render-/Soundereignisse sind aus Zustandsänderungen ableitbar.
 
@@ -75,12 +77,13 @@ Ein JSON-serialisierbares Objekt enthält:
 
 Felsen/Edelsteine tragen `falling`. Die Daten enthalten keine DOM-Referenzen, Funktionen, Maps oder Sets.
 Kurzlebige Verarbeitungssätze innerhalb eines Ticks werden nicht gespeichert; Snapshots entstehen nur an Tickgrenzen.
-Ab S07 hält die Anwendung zusätzlich `usedRewind`: Dieses Kennzeichen bleibt nach erster Nutzung gesetzt,
-auch wenn vor die Nutzung zurückgespult wird, und wird später mit der Partie gespeichert.
+Seit S07 hält die Anwendung außerhalb der Simulationssnapshots zusätzlich `recorder.replay.usedRewind`:
+Dieses Kennzeichen bleibt nach dem ersten tatsächlich zurückgenommenen Tick gesetzt,
+auch wenn vor die Nutzung zurückgespult wird, und wird ab S08 mit der Partie gespeichert.
 
 Das Starten erzeugt den Zustand immer neu aus unveränderten Leveldaten. Replays speichern Tick-Eingaben
-und Versionsidentität, keine Browserereignisse oder Millisekunden. Rückspulen speichert begrenzte Snapshots
-oder gleichwertige Deltas; die genaue Optimierung entscheidet S07 anhand gemessenen Speicherverbrauchs.
+und Versionsidentität, keine Browserereignisse oder Millisekunden. Rückspulen kombiniert begrenzte
+vollständige JSON-Snapshots mit den dazwischenliegenden Eingaben (siehe S07 unten).
 
 ## Entwicklungswerkzeuge und Prüfungen
 
@@ -111,8 +114,8 @@ Overlay-Menüs und HUD sind DOM-Elemente, die Simulation bleibt davon unabhängi
 ## Einheitliche Eingabe (S05)
 
 Tastatur und Gamepad liefern dieselben diskreten Richtungen und Aktionsflags; Menübefehle sind
-von Simulationseingaben getrennt. Rückspulen und Ton sind als Aktionen vorbereitet, noch nicht als
-Spielfunktionen vorhanden. Die Anwendung meldet diese Grenze sichtbar.
+von Simulationseingaben getrennt. Rückspulen ist seit S07 angeschlossen; Ton bleibt bis S14 eine
+vorbereitete Aktion mit sichtbarem Hinweis auf die noch fehlende Spielfunktion.
 
 Die Gamepad-API wird pro Renderframe gelesen, auch im Menü. Standard-Mapping hat Vorrang.
 Zusätzlich wird der Competition Pro (USB-ID 040b:6533) bei leerem Mapping akzeptiert:
@@ -139,6 +142,9 @@ Controllertrennung wird über Ereignisse und Polling erkannt. Nur der zuletzt ak
 Controller löst bei Trennung die Pause aus. Während Fokusverlust/unsichtbarem Tab werden
 Controlleraktionen nicht verarbeitet. Nach Rückkehr müssen zunächst alle Controlleraktionen
 losgelassen werden; kein unbewusstes Fortsetzen durch eine außerhalb des Fensters gedrückte Taste.
+Nach aktiver Controllertrennung bleibt die Neutralstellungssperre auch ohne angeschlossenen Controller
+und über Bildschirmwechsel bestehen. Beim Wiederanschließen darf ein gehaltenes B nicht als neue
+Zurück-/Fortsetzen-Aktion die Trennungspause beenden.
 Fehlende API, verweigerter Zugriff und unbekanntes Mapping erhalten deutsche Hinweise.
 Browser-API-Tests verwenden simulierte Controller; der echte Hardwaretest bleibt gesonderte Abnahme.
 
@@ -160,3 +166,55 @@ Die Anwendung bietet Downloads in Pause, Sieg und Niederlage an; der Download ve
 Simulationszustand nicht. `tools/replay.cjs` prüft alle mitgelieferten Level oder ein angegebenes Dateipaar
 ohne Browser. Format, Ressourcengrenzen, Kompatibilität und Aufrufe stehen in
 [replay-format.md](replay-format.md).
+
+## Rückspulverlauf (S07)
+
+`RewindHistory` speichert den Anfangszustand und alle zehn Ticks einen vollständigen JSON-Snapshot.
+Höchstens elf Snapshots und 109 Eingaben bleiben erhalten. Bei einem neuen zwölften Snapshot
+entfallen der älteste Snapshot und die ersten zehn Eingaben. Nach genügend Vorlauf sind dadurch
+immer 100 bis 109 vergangene Ticks verfügbar, also mindestens zehn Sekunden bei Regelversion 1.
+Nach Rückspulen steht entsprechend weniger Vergangenheit zur Verfügung, bis neue Ticks hinzukommen.
+
+`back()` rekonstruiert den unmittelbar vorherigen Tick aus dem nächstgelegenen Snapshot und
+höchstens neun Aufrufen derselben Simulation. Die gespeicherten Zustände werden dabei nie mutiert.
+JSON-Snapshots enthalten sämtliche Zustandsfelder einschließlich Zufallszustand und Schubfortschritt;
+es gibt keine pflegebedürftige Liste einzelner zurückzuspulender Mechanikfelder.
+Neue Mechaniken müssen weiter ausschließlich im JSON-Zustand und in `Simulation.step` leben.
+Rekonstruktion führt keine Browser-, Audio- oder Speichernebenwirkungen aus.
+
+Das Rückspulen entfernt sofort die verworfenen Eingaben und späteren Snapshots.
+`Recorder.truncate(state.tick)` kürzt auch einen teilweise verworfenen Eingabeblock und setzt
+`usedRewind` dauerhaft außerhalb der Snapshots. Die resultierende Eingabefolge bleibt von Levelbeginn
+an reproduzierbar. Format 2 transportiert die Laufkennzeichnung; Format 1 wird weiterhin gelesen.
+Ein Neustart erzeugt Recorder und Verlauf neu. S08 muss Zustand, Replay und Laufkennzeichnung
+gemeinsam speichern, jedoch nicht den temporären Rückspulverlauf.
+
+`main.js` unterscheidet den UI-Zustand `rewinding` von `playing`: Der unveränderte 100-ms-Takt
+führt entweder einen Vorwärts- oder einen Rückwärtsschritt aus. Während Rückspulen und am leeren
+Verlaufsrand läuft die Simulation nicht vorwärts. Loslassen setzt erst ab dem nächsten vollständigen
+Tick bewusst fort. Das Bild zeigt den wiederhergestellten Zustand ohne Vorwärtsinterpolation.
+`usedRewind` ändert sich erst bei tatsächlicher Wiederherstellung, nicht beim Drücken an leerem Verlauf.
+
+Der Eingabekontext `lost` erhält Menüauswahl/Bestätigung, interpretiert B jedoch als Rückspulen.
+Beim Wechsel ins Rückspulen bleibt nur bewusst der gehaltene Eingabezustand erhalten; sonst gelten
+weiterhin die Loslasssperren. Fokusverlust, Zeitunterbrechung und Controllertrennung unterbrechen auch
+das Rückspulen. Nach Wiederkehr wird nicht automatisch fortgesetzt.
+
+### Speicherentscheidung und Messung
+
+Hundert vollständige Rasterkopien wurden zugunsten von elf Snapshots plus Eingaben vermieden.
+Der Verlauf ist durch Anzahl und die maximalen Levelabmessungen begrenzt; er wächst nicht mit der
+Partiedauer. Der Recorder für die gesamte Partie bleibt separat auf maximal 36.000 Ticks begrenzt.
+
+Gemessen am 27. November 2026 unter Node.js 24.13.1 auf Linux: jeweils 109 neutrale Vorwärtsticks,
+danach 100 einzelne Rückwärtsschritte. Die große Testkarte bestand aus 128×128 Feldern mit Stahlrand,
+Start/Ausgang und sonst Felsen. Das sind Prüfdaten, kein mitgeliefertes Kampagnenlevel.
+
+| Karte | Snapshot-/Eingabe-Nutzdaten als UTF-16 | Rückschritt im Mittel / Maximum |
+|---|---:|---:|
+| Erste Höhle, 20×12 | 0,15 MiB | 0,09 / 1,04 ms |
+| Felsgefüllte Maximalkarte, 128×128 | 14,40 MiB | 9,84 / 23,42 ms |
+
+Die Nutzdatenmessung zählt zwei Bytes je gespeichertem JSON-Zeichen, nicht den gesamten JavaScript-Heap.
+Zusätzlicher Verwaltungs-/Parser-/Simulationsspeicher und kurzlebige Rekonstruktionszustände kommen hinzu.
+Die Zeitmessung ist keine Browser-/Hardwareabnahme und keine Zusicherung von 60 FPS auf jeder Karte.

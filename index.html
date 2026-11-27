@@ -11,13 +11,14 @@
   <main>
     <header>
       <div><p class="eyebrow">Ein Funkeln in der Tiefe</p><h1>STURZSTEIN</h1></div>
-      <span class="tag">ERSTE HÖHLE · S06</span>
+      <span class="tag">ERSTE HÖHLE · S07</span>
     </header>
     <section class="hud" aria-label="Spielstand">
       <span class="level" id="level-name"></span>
       <span class="stat">EDELSTEINE<strong id="gems">0 / 3</strong></span>
       <span class="stat">RESTZEIT<strong id="time">2:00</strong></span>
       <span class="stat">PUNKTE<strong id="score">0</strong></span>
+      <span class="stat">RÜCKSPULVERLAUF<strong id="rewind-time">0,0 s</strong></span>
     </section>
     <section id="stage" aria-label="Höhle">
       <canvas id="board" tabindex="0" aria-label="Spielfeld. Mit Pfeiltasten oder WASD bewegen."></canvas>
@@ -46,7 +47,8 @@
       <kbd>Esc</kbd> / <kbd>P</kbd> Pause · <kbd>R</kbd> Neustart</p>
       <p id="gamepad-status" role="status">Gamepad anschließen und eine Taste drücken.</p>
       <p id="feature-notice" role="status"></p>
-      <p class="scope">Spielbarer Zwischenstand: eine eigene Höhle. Rückspulen (Z/U oder B im Spiel), Speicherung,
+      <p id="rewind-status">Ohne Rückspulen · Z/U oder Controller-Rückspultaste halten, auch nach einer Niederlage.</p>
+      <p class="scope">Spielbarer Zwischenstand: eine eigene Höhle. Speicherung,
         Gegner und weitere Level folgen in den nächsten Issues.</p>
     </footer>
   </main>
@@ -54,6 +56,7 @@
   <script src="js/level-bundle.js"></script>
   <script src="js/simulation.js"></script>
   <script src="js/replay.js"></script>
+  <script src="js/rewind.js"></script>
   <script src="js/clock.js"></script>
   <script src="js/gamepad.js"></script>
   <script src="js/input.js"></script>

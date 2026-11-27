@@ -20,17 +20,21 @@
       if (typeof value !== "string" || value.length > 64 || !/^[a-z0-9][a-z0-9-]*$/.test(value)) fail(path, "Ungültige ID.");
       return value;
     }
-    object(value, "Replay", ["formatVersion", "packId", "levelId", "levelRevision", "ruleVersion", "seed", "inputs"]);
-    for (const key of ["formatVersion", "ruleVersion"]) {
-      if (value[key] !== 1) fail(key, "Nicht unterstützte Version; erwartet wird 1.");
+    object(value, "Replay", ["formatVersion", "packId", "levelId", "levelRevision", "ruleVersion", "seed", "inputs",
+      ...(value?.formatVersion === 2 ? ["usedRewind"] : [])]);
+    if (![1, 2].includes(value.formatVersion)) fail("formatVersion", "Nicht unterstützte Version; erwartet wird 1 oder 2.");
+    if (value.ruleVersion !== 1) fail("ruleVersion", "Nicht unterstützte Version; erwartet wird 1.");
+    if (value.formatVersion === 2 && typeof value.usedRewind !== "boolean") {
+      fail("usedRewind", "Boolescher Wert erwartet.");
     }
     const replay = {
-      formatVersion: 1,
+      formatVersion: 2,
       packId: id(value.packId, "packId"),
       levelId: id(value.levelId, "levelId"),
       levelRevision: integer(value.levelRevision, "levelRevision", 1, 2147483647),
       ruleVersion: value.ruleVersion,
       seed: integer(value.seed, "seed", 0, 4294967295),
+      usedRewind: value.formatVersion === 1 ? false : value.usedRewind,
       inputs: [],
     };
     if (!Array.isArray(value.inputs) || value.inputs.length > limits.ticks) fail("inputs", `Höchstens ${limits.ticks} Eingabeblöcke erwartet.`);
@@ -67,9 +71,9 @@
     constructor(pack, levelId) {
       const state = Simulation.createState(pack, levelId);
       this.replay = {
-        formatVersion: 1, packId: state.packId, levelId: state.levelId,
+        formatVersion: 2, packId: state.packId, levelId: state.levelId,
         levelRevision: state.levelRevision, ruleVersion: state.ruleVersion,
-        seed: state.rngState, inputs: [],
+        seed: state.rngState, usedRewind: false, inputs: [],
       };
       this.ticks = 0;
       this.maxTicks = state.remainingTicks;
@@ -87,6 +91,22 @@
       else this.replay.inputs.push({ ticks: 1, ...command });
       this.ticks++;
       return command;
+    }
+    truncate(tick) {
+      if (!Number.isInteger(tick) || tick < 0 || tick > this.ticks) {
+        throw new Error("Replay-Aufzeichnung: Ungültiges Rückspulziel.");
+      }
+      if (tick === this.ticks) return;
+      let remove = this.ticks - tick;
+      while (remove > 0) {
+        const last = this.replay.inputs.at(-1);
+        const count = Math.min(remove, last.ticks);
+        last.ticks -= count;
+        remove -= count;
+        if (!last.ticks) this.replay.inputs.pop();
+      }
+      this.ticks = tick;
+      this.replay.usedRewind = true;
     }
   }
 
@@ -111,7 +131,8 @@
     if (requireWin && state.status !== "won") {
       throw new Error(`Replay: Kein Sieg nach ${state.tick} Ticks (${state.reason || "Eingaben enden während des Spiels"}).`);
     }
-    return { state, ticks: state.tick, remainingSeconds: state.remainingTicks * Simulation.TICK_MS / 1000 };
+    return { state, ticks: state.tick, remainingSeconds: state.remainingTicks * Simulation.TICK_MS / 1000,
+      usedRewind: replay.usedRewind };
   }
 
   const api = Object.freeze({ limits, validateReplay, parseReplay, stringifyReplay, Recorder, play });

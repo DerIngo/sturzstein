@@ -57,7 +57,7 @@
       this.nextRepeat = 0;
       this.keyboard = new KeyboardInput(target, (command) => {
         if (command === "action") {
-          if (this.context === "menu") onCommand("confirm");
+          if (this.context === "menu" || this.context === "lost") onCommand("confirm");
         } else onCommand(command);
       }, () => this.use("keyboard"));
       this.gamepad = new GamepadInput(
@@ -95,9 +95,15 @@
       this.clear();
       this.gamepad.clear(true);
     }
-    setContext(context) {
+    setContext(context, { preserveHeld = false } = {}) {
       this.context = context;
-      this.clear();
+      if (!preserveHeld) this.clear();
+      else {
+        this.keyboard.queued = null;
+        this.gamepad.queued = null;
+        this.menuDirection = null;
+        this.nextRepeat = 0;
+      }
     }
     update(now) {
       const result = this.gamepad.poll(this.context);
@@ -106,7 +112,7 @@
         this.onCommand(result.command);
         return;
       }
-      if (this.context !== "menu") return;
+      if (this.context !== "menu" && this.context !== "lost") return;
       const { direction } = this.sample();
       if (!direction) { this.menuDirection = null; return; }
       if (direction !== this.menuDirection) {
@@ -121,6 +127,9 @@
     sample() {
       if (this.device === "gamepad") return this.gamepad.sample();
       return { ...this.keyboard.sample(), rewind: this.keyboard.rewinding() };
+    }
+    rewinding() {
+      return this.device === "gamepad" ? this.gamepad.rewinding() : this.keyboard.rewinding();
     }
   }
   (root.Sturzstein ??= {}).KeyboardInput = KeyboardInput;

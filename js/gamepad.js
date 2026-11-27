@@ -54,7 +54,7 @@
     }
     clear(requireRelease = false) {
       this.queued = null;
-      this.releaseRequired = requireRelease || Boolean(active(this.current));
+      this.releaseRequired = this.releaseRequired || requireRelease || Boolean(active(this.current));
     }
     disconnect(index) {
       this.history.delete(index);
@@ -63,7 +63,7 @@
       this.profile = null;
       this.current = neutral();
       this.queued = null;
-      this.releaseRequired = false;
+      this.releaseRequired = true;
       this.onDisconnect();
     }
     poll(context) {
@@ -107,7 +107,10 @@
       this.current = snapshots.get(this.index) || neutral();
       this.history = snapshots;
       if (this.releaseRequired) {
-        if (!active(this.current)) this.releaseRequired = false;
+        const neutral = this.index === null
+          ? snapshots.size > 0 && ![...snapshots.values()].some(active)
+          : !active(this.current);
+        if (neutral) this.releaseRequired = false;
         return null;
       }
       if (this.current.direction && (this.current.direction !== old.direction || this.current.grab !== old.grab)) {
@@ -115,15 +118,16 @@
       }
       const fresh = (key) => this.current[key] && !old[key];
       const command = fresh("pause") ? "pause" : fresh("restart") ? "restart"
-        : fresh("rewind") ? (context === "play" ? "rewind" : "escape")
+        : fresh("rewind") ? (context === "play" || context === "lost" ? "rewind" : "escape")
           : fresh("grab") && context !== "play" ? "confirm" : null;
       return { activity: changes.some(([index]) => index === this.index), command };
     }
+    rewinding() { return !this.releaseRequired && this.current.rewind; }
     sample() {
       if (this.releaseRequired) return { direction: null, grab: false, rewind: false };
       const sample = this.queued || this.current;
       this.queued = null;
-      return { direction: sample.direction, grab: sample.grab, rewind: this.current.rewind };
+      return { direction: sample.direction, grab: sample.grab, rewind: this.rewinding() };
     }
   }
 
