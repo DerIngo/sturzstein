@@ -5,16 +5,24 @@
     ArrowDown: "down", KeyS: "down", ArrowLeft: "left", KeyA: "left",
   };
   class KeyboardInput {
-    constructor(target, onCommand) {
+    constructor(target, onCommand, onActivity = () => {}) {
       this.clear();
       this.down = (event) => {
         if (event.target?.closest?.("input, textarea, select, [contenteditable=true]") || event.ctrlKey || event.metaKey || event.altKey) return;
         const code = event.code;
-        const command = { Escape: "escape", KeyP: "pause", KeyR: "restart", Enter: "confirm" }[code];
-        if ((code === "Enter" || code === "Space") && event.target?.closest?.("button, a")) return;
+        if (code === "Tab") { onActivity(); return; }
+        const command = {
+          Escape: "escape", KeyP: "pause", KeyR: "restart", Enter: "confirm",
+          KeyM: "mute", KeyZ: "rewind", KeyU: "rewind", Space: "action",
+        }[code];
+        if ((code === "Enter" || code === "Space") && event.target?.closest?.("button, a")) {
+          onActivity();
+          return;
+        }
         if (!directions[code] && !command && !["Space", "ShiftLeft", "ShiftRight"].includes(code)) return;
         event.preventDefault();
         if (event.repeat) return;
+        onActivity();
         this.keys.delete(code);
         this.keys.set(code, true);
         if (directions[code]) this.queued = { direction: directions[code], grab: this.grabbing() };
@@ -26,6 +34,7 @@
     }
     clear() { this.keys = new Map(); this.queued = null; }
     grabbing() { return ["Space", "ShiftLeft", "ShiftRight"].some((key) => this.keys.has(key)); }
+    rewinding() { return this.keys.has("KeyZ") || this.keys.has("KeyU"); }
     sample() {
       if (this.queued) {
         const input = this.queued;
@@ -36,6 +45,85 @@
       return { direction: key ? directions[key] : null, grab: this.grabbing() };
     }
   }
+  class InputManager {
+    constructor(target, navigator, { onCommand, onDevice, onStatus, onDisconnect }) {
+      const { GamepadInput } = root.Sturzstein?.Gamepad ?? require("./gamepad.js");
+      this.device = "keyboard";
+      this.context = "menu";
+      this.onCommand = onCommand;
+      this.onDevice = onDevice;
+      this.menuDirection = null;
+      this.nextRepeat = 0;
+      this.keyboard = new KeyboardInput(target, (command) => {
+        if (command === "action") {
+          if (this.context === "menu") onCommand("confirm");
+        } else onCommand(command);
+      }, () => this.use("keyboard"));
+      this.gamepad = new GamepadInput(
+        typeof navigator.getGamepads === "function" ? () => navigator.getGamepads() : null,
+        onStatus,
+        () => {
+          if (this.device === "gamepad") {
+            this.use("keyboard");
+            onDisconnect();
+          }
+        },
+      );
+      target.addEventListener("pointerdown", () => this.use("mouse"));
+      target.addEventListener("gamepaddisconnected", (event) => this.gamepad.disconnect(event.gamepad.index));
+      target.addEventListener("gamepadconnected", () => { this.gamepad.failed = false; });
+      onDevice(this.device);
+    }
+    use(device) {
+      if (this.device === device) return;
+      this.device = device;
+      this.menuDirection = null;
+      if (device !== "keyboard") this.keyboard.clear();
+      if (device !== "gamepad") this.gamepad.clear();
+      this.onDevice(device);
+    }
+    clear() {
+      this.keyboard.clear();
+      this.gamepad.clear();
+      this.menuDirection = null;
+      this.nextRepeat = 0;
+    }
+    suspend() {
+      this.clear();
+      this.gamepad.clear(true);
+    }
+    setContext(context) {
+      this.context = context;
+      this.clear();
+    }
+    update(now) {
+      const result = this.gamepad.poll(this.context);
+      if (result?.activity) this.use("gamepad");
+      if (result?.command) {
+        this.onCommand(result.command);
+        return;
+      }
+      if (this.context !== "menu") return;
+      const { direction } = this.sample();
+      if (!direction) { this.menuDirection = null; return; }
+      if (direction !== this.menuDirection) {
+        this.menuDirection = direction;
+        this.nextRepeat = now + 350;
+        this.onCommand("navigate", direction);
+      } else if (now >= this.nextRepeat) {
+        this.nextRepeat = now + 150;
+        this.onCommand("navigate", direction);
+      }
+    }
+    sample() {
+      if (this.device === "gamepad") return this.gamepad.sample();
+      return { ...this.keyboard.sample(), rewind: this.keyboard.rewinding() };
+    }
+  }
   (root.Sturzstein ??= {}).KeyboardInput = KeyboardInput;
-  if (typeof module !== "undefined" && module.exports) module.exports = KeyboardInput;
+  root.Sturzstein.InputManager = InputManager;
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = KeyboardInput;
+    module.exports.InputManager = InputManager;
+  }
 })(globalThis);

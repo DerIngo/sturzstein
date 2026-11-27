@@ -17,10 +17,11 @@
   let screen = "loading";
   let beforeConfirm = "playing";
   let lastFrame = 0;
+  let focused = true;
 
   function show(next, message = "") {
     screen = next;
-    input?.clear();
+    input?.setContext(next === "playing" ? "play" : "menu");
     overlay.hidden = next === "playing";
     get("pause").disabled = !["playing", "paused"].includes(next);
     get("pause").textContent = next === "paused" ? "Fortsetzen" : "Pause";
@@ -70,9 +71,26 @@
     if (screen === "start" || screen === "won" || screen === "lost" || screen === "confirm") restart();
     else if (screen === "paused") show("playing");
   }
-  function command(action) {
+  function command(action, direction) {
     if (["loading", "error"].includes(screen)) return;
-    if (action === "confirm") { confirm(); return; }
+    if (action === "navigate" && !overlay.hidden) {
+      const buttons = [primary, secondary].filter((button) => !button.hidden && !button.disabled);
+      const index = buttons.indexOf(document.activeElement);
+      const step = direction === "up" || direction === "left" ? -1 : 1;
+      buttons[(index + step + buttons.length) % buttons.length]?.focus();
+      return;
+    }
+    if (action === "confirm") {
+      if (!overlay.hidden && document.activeElement === secondary) secondary.click();
+      else confirm();
+      return;
+    }
+    if (action === "rewind" || action === "mute") {
+      get("feature-notice").textContent = action === "rewind"
+        ? "Rückspulen ist vorbereitet und folgt in S07; diese Version spult noch nicht zurück."
+        : "Tonsteuerung ist vorbereitet und folgt mit den Soundeffekten in S14.";
+      return;
+    }
     if (action === "restart" && ["playing", "paused"].includes(screen)) {
       beforeConfirm = screen;
       show("confirm");
@@ -80,6 +98,8 @@
       restart();
     } else if (action === "escape" && screen === "confirm") {
       show(beforeConfirm);
+    } else if (action === "escape" && ["won", "lost"].includes(screen)) {
+      show("start");
     } else if (["escape", "pause"].includes(action)) {
       if (screen === "playing") show("paused");
       else if (screen === "paused") show("playing");
@@ -92,6 +112,7 @@
   }
   function frame(now) {
     try {
+      if (focused && !document.hidden) input.update(performance.now());
       // Gleiche Zeitquelle wie reset(): Firefox kann ältere rAF-Zeitstempel liefern.
       const alpha = clock.frame(performance.now(), screen === "playing");
       renderer.draw(state, previous, screen === "playing" ? alpha : 1, now - lastFrame);
@@ -104,9 +125,10 @@
   }
   function pauseForInterruption() {
     if (screen === "playing") show("paused", "Das Spiel wurde wegen einer Unterbrechung pausiert. Setze bewusst fort.");
-    input?.clear();
+    input?.suspend();
   }
-  window.addEventListener("blur", pauseForInterruption);
+  window.addEventListener("blur", () => { focused = false; pauseForInterruption(); });
+  window.addEventListener("focus", () => { focused = true; });
   document.addEventListener("visibilitychange", () => { if (document.hidden) pauseForInterruption(); });
   primary.addEventListener("click", confirm);
   secondary.addEventListener("click", () => show(beforeConfirm));
@@ -131,7 +153,18 @@
       image.src = "assets/tiles.png";
     });
     renderer = new app.Renderer(canvas, image);
-    input = new app.KeyboardInput(window, command);
+    input = new app.InputManager(window, navigator, {
+      onCommand: command,
+      onDevice(device) {
+        get("input-hints").textContent = device === "gamepad"
+          ? "Gamepad: Steuerkreuz / linker Stick bewegen · A + Richtung graben · Start Pause · Y Neustart · A bestätigen · B zurück"
+          : `${device === "mouse" ? "Maus: Menüs anklicken. " : ""}Tastatur: Pfeile / WASD bewegen · Leertaste / Umschalt + Richtung graben · Esc / P Pause · R Neustart · Enter bestätigen`;
+      },
+      onStatus(message) { get("gamepad-status").textContent = message; },
+      onDisconnect() {
+        if (screen === "playing") show("paused", "Der aktive Controller wurde getrennt. Verbinde ihn erneut oder nutze die Tastatur.");
+      },
+    });
     clock = new app.FixedClock(() => {
       if (screen !== "playing") return;
       previous = structuredClone(state);

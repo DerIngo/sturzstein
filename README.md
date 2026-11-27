@@ -5,11 +5,12 @@ Eigene Level, Grafiken und Regeln; keine Originalassets oder kopierten Originall
 
 ## Aktueller Umfang
 
-Der erste spielbare Stand (S04) enthält eine eigene Höhle mit Graben, Sammeln, Schieben,
+Der spielbare Stand enthält eine eigene Höhle mit Graben, Sammeln, Schieben,
 Fall-/Abrollphysik, Zeitlimit, Sieg/Niederlage, Pause und Neustart.
+Seit S05 sind Standard-Gamepads sowie geräteabhängige Bedienhinweise integriert.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
-Gamepad (S05), Replays (S06), Rückspulen (S07), Speicherung (S08), Gegner/Sondermechaniken,
+Replays (S06), Rückspulen (S07), Speicherung (S08), Gegner/Sondermechaniken,
 Pack-Import und die vollständige Kampagne sind noch nicht implementiert.
 
 ## Start
@@ -43,6 +44,31 @@ Menüknöpfe sind auch per Maus und Tab bedienbar. Beim Fokus-/Tabverlust oder e
 Unterbrechung wird automatisch pausiert; erst bewusste Bestätigung setzt das Spiel fort.
 Es gibt keine begrenzten Leben. Beim Schließen der Seite geht diese Partie aktuell noch verloren.
 
+## Gamepad und Eingabegeräte
+
+Controller anschließen und eine Taste drücken, damit der Browser ihn freigibt. Unterstützt wird
+das Browser-Standard-Mapping; andere Mappings werden ausdrücklich gemeldet statt geraten.
+
+| Aktion | Standard-Gamepad |
+|---|---|
+| Bewegen / Menüauswahl | Steuerkreuz oder linker Stick |
+| Graben/Sammeln ohne Bewegung | A halten und Richtung |
+| Menüknopf betätigen | A |
+| Zurück / Neustartdialog abbrechen | B |
+| Pause/Fortsetzen | Start |
+| Neustart mit Bestätigung | Y |
+
+Nach einem Bildschirmwechsel gehaltene Tasten/Stick erst loslassen, bevor die nächste Aktion erfolgt.
+Bei diagonaler Stickstellung gewinnt die stärkere Achse; die Deadzone verhindert kleine unbeabsichtigte
+Bewegungen. Beim Trennen des aktiv benutzten Controllers pausiert das Spiel.
+Tastatur, Maus und Controller lassen sich ohne Neuladen wechseln; die Hinweise passen sich an.
+Menüauswahl funktioniert auch per Pfeiltasten/WASD; gehaltene Richtungen wiederholen kontrolliert.
+
+Bei fehlender/blockierter Gamepad-API erscheinen Hinweise unter dem Spielfeld. Insbesondere bei
+Einschränkungen unter `file://` den lokalen Webserver oder die HTTPS-Seite verwenden.
+Die Tastatur bleibt nutzbar. Rückspulen (Z/U bzw. B im Spiel) und Ton (M) liefern bereits abstrakte
+Aktionen, zeigen derzeit aber ausdrücklich an, dass die Funktionen erst in S07/S14 hinzukommen.
+
 ## Entwicklung und Prüfungen
 
 Node.js 24 LTS:
@@ -71,12 +97,13 @@ npm run test:browser
 Diese Downloads sind nicht zum Spielen erforderlich. Automatisierte Browserprüfungen ersetzen
 keine menschliche Beurteilung von Spielgefühl, Grafik oder Controllerhardware.
 
-Der S04-Stand wurde mit 40 Node-Tests und zehn automatisierten Browserprüfungen in
-Playwright-Chromium/Firefox geprüft. Abgedeckt sind beide Startarten, ein Sieg durch echte
-Tastatureingaben, Tod, Neustart, Pause, Fokusereignisse, variable Fenstergrößen/Pixeldichten
-und große Höhlen. Die Lösung liegt als getaktete Tastaturfolge im Browsertest;
-das separate Replay-Dateiformat folgt in S06. Eine lokale Screenshot-Sichtprüfung wurde durchgeführt.
-Eine menschliche Spielabnahme sowie Tests in Edge und mit echter Controllerhardware stehen aus.
+Die Prüfungen in Node und Playwright-Chromium/Firefox decken beide Startarten, einen Sieg durch
+Tastatureingaben und simulierte Controller, Tod, Neustart, Pause, Fokusereignisse, variable
+Fenstergrößen/Pixeldichten und große Höhlen ab. Die Lösung liegt als getaktete Eingabefolge im
+Browsertest; das separate Replay-Dateiformat folgt in S06.
+S04 wurde nach lokaler Screenshot-Sichtprüfung und Nutzer-Spielabnahme freigegeben.
+Für S05 stehen der echte Controller-Spieltest und die Nutzerabnahme noch aus.
+Simulierte Gamepad-API-Tests ersetzen keine Controllerhardware. Edge ist bisher nicht geprüft.
 
 ## Leveldaten und Architektur
 
@@ -98,7 +125,8 @@ Historische Referenzen und deren Lizenzgrenzen stehen im Rechercheabschnitt von 
 | `js/levels.js`, `levels/` | Gemeinsamer Validator und maßgebliche JSON-Level |
 | `js/level-bundle.js` | Generierte integrierte Leveldaten |
 | `js/simulation.js` | DOM-unabhängige deterministische Regeln |
-| `js/clock.js`, `js/input.js` | Tick-Akkumulator und Tastaturaktionen |
+| `js/clock.js` | Tick-Akkumulator |
+| `js/input.js`, `js/gamepad.js` | Einheitliche Aktionen, Tastatur-/Gamepadzustand und Gerätewechsel |
 | `js/renderer.js`, `assets/` | Pixelgenaue Canvas-Darstellung und eigene PNG-Sprites |
 | `js/main.js` | Browseranbindung und Spielablauf |
 | `tools/`, `tests/` | Erzeugungswerkzeuge, Logik- und Browsertests |

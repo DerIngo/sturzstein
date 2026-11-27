@@ -7,6 +7,7 @@ Datenbundle-Werkzeug, Browser-Startgerüst und Testwerkzeuge. Seit S03 ist die D
 Kernsimulation mit Grundelementen, Timer, Wertung und terminalen Zuständen implementiert.
 Seit S04 sind Canvas-Darstellung, Tick-Akkumulator, Tastatureingabe und der vollständige kleine
 Browser-Spielablauf implementiert. Die späteren Mechaniken und Komfortmodule bleiben geplant.
+S05 ergänzt Standard-Gamepads, Gerätewechsel und einheitliche Menü-/Spielaktionen.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
 Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
@@ -41,12 +42,13 @@ Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-Syst
 Klassische Skripte registrieren ihre APIs unter `globalThis.Sturzstein`. Reine Module exportieren
 zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine transpilierten Quellen.
 
-| Datei/Bereich (S02–S04) | Vertrag |
+| Datei/Bereich (S02–S05) | Vertrag |
 |---|---|
 | `js/levels.js` | `parsePack(text, source)`, `validatePack(value, source)` liefern ein normalisiertes Pack oder werfen einen beschreibenden Fehler |
 | `js/simulation.js` | `createState(pack, levelId)` erzeugt einen neuen Zustand; `step(state, {direction, grab})` verändert ihn um genau einen Tick |
 | `js/clock.js` | Fester 100-ms-Akkumulator; rendert beliebig oft, pausiert bei Unterbrechungen statt große Sprünge nachzuholen |
-| `js/input.js` | Hält Tastenstatus und liefert pro Tick eine Richtung oder `null` sowie `grab`; Menüaktionen getrennt |
+| `js/input.js` | `InputManager.update(now)` für geräteübergreifende Menüaktionen; `sample()` liefert Richtung, `grab` und vorbereitetes `rewind` pro Tick |
+| `js/gamepad.js` | Standard-Mapping, Deadzone, Tastenkanten, Polling, Hotplugging und sichtbare API-Fehler |
 | `js/renderer.js` | Zeichnet Zustand und vorherigen Zustand mit Interpolationsfaktor; verändert weder Simulation noch Zufall |
 | `js/main.js` | Verbindet Module mit Browser, HUD, Pause und später Bildschirmverwaltung |
 | `levels/*.json`, `js/level-bundle.js` | Maßgebliche Textdaten und generiertes, mitgeliefertes Bundle |
@@ -103,3 +105,30 @@ Canvas-Backing-Store entspricht CSS-Größe mal Geräte-Pixeldichte. Sprites wer
 ganzzahligen Geräte-Pixel-Faktoren gezeichnet, Kameraversatz und interpolierte Positionen
 auf Geräte-Pixel gerundet. Die Kamera bleibt innerhalb der Weltgrenzen; kleine Höhlen sind zentriert.
 Overlay-Menüs und HUD sind DOM-Elemente, die Simulation bleibt davon unabhängig.
+
+## Einheitliche Eingabe (S05)
+
+Tastatur und Gamepad liefern dieselben diskreten Richtungen und Aktionsflags; Menübefehle sind
+von Simulationseingaben getrennt. Rückspulen und Ton sind als Aktionen vorbereitet, noch nicht als
+Spielfunktionen vorhanden. Die Anwendung meldet diese Grenze sichtbar.
+
+Die Gamepad-API wird pro Renderframe gelesen, auch im Menü. Nur Standard-Mapping wird akzeptiert.
+Stick-Einschaltung ab 0,35, Rückkehr zur Neutralstellung unter 0,25; stärkere Achse gewinnt.
+Bei Gleichstand bleibt eine noch passende Richtung erhalten, sonst gewinnt die vertikale Richtung.
+Steuerkreuz hat Vorrang vor Analogstick; entgegengesetzte Steuerkreuzrichtungen heben sich auf.
+Menübewegung erfolgt sofort, nach 350 ms erneut und danach alle 150 ms. Die Spielbewegung
+bleibt an den unveränderten 100-ms-Simulationstick gebunden.
+
+Bestätigen, Zurück, Pause und Neustart werden nur beim Drücken ausgelöst, nicht in jedem Frame.
+Bildschirmwechsel sperren noch gehaltene Controlleraktionen bis zur Neutralstellung. Kurze
+Richtungseingaben werden bis zum nächsten Simulationstick gepuffert.
+Das zuletzt aktiv verwendete Gerät steuert; ein nur weiter gehaltener Stick übernimmt nicht
+ungefragt nach einer Tastatur-/Mausaktion. Bei mehreren Controllern wählt eine neue relevante
+Eingabe das Gerät; bei gleichzeitig neuen Eingaben gilt die Reihenfolge der API-Liste.
+
+Controllertrennung wird über Ereignisse und Polling erkannt. Nur der zuletzt aktiv verwendete
+Controller löst bei Trennung die Pause aus. Während Fokusverlust/unsichtbarem Tab werden
+Controlleraktionen nicht verarbeitet. Nach Rückkehr müssen zunächst alle Controlleraktionen
+losgelassen werden; kein unbewusstes Fortsetzen durch eine außerhalb des Fensters gedrückte Taste.
+Fehlende API, verweigerter Zugriff und unbekanntes Mapping erhalten deutsche Hinweise.
+Browser-API-Tests verwenden simulierte Controller; der echte Hardwaretest bleibt gesonderte Abnahme.

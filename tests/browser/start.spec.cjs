@@ -7,6 +7,35 @@ const root = path.resolve(__dirname, "../..");
 let server;
 let origin;
 
+async function observeSimulation(page) {
+  await page.evaluate(() => {
+    const original = window.Sturzstein.Simulation;
+    window.Sturzstein.Simulation = {
+      ...original,
+      createState(...args) {
+        const state = original.createState(...args);
+        window.testState = structuredClone(state);
+        return state;
+      },
+      step(...args) {
+        const state = original.step(...args);
+        window.testState = structuredClone(state);
+        return state;
+      },
+    };
+  });
+}
+
+async function advanceTicks(page, count) {
+  const target = await page.evaluate(() => window.testState.tick) + count;
+  await page.clock.runFor(Math.max(0, count * 100 - 16));
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (await page.evaluate(() => window.testState.tick) >= target) break;
+    await page.clock.runFor(16);
+  }
+  expect(await page.evaluate(() => window.testState.tick)).toBe(target);
+}
+
 test.beforeAll(async () => {
   server = http.createServer((request, response) => {
     const url = new URL(request.url, "http://localhost");
@@ -52,33 +81,12 @@ for (const protocol of ["file", "http"]) {
     await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
     await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
     await expect(page.locator("#primary")).toBeEnabled();
-    await page.evaluate(() => {
-      const original = window.Sturzstein.Simulation;
-      window.Sturzstein.Simulation = {
-        ...original,
-        createState(...args) {
-          const state = original.createState(...args);
-          window.testState = structuredClone(state);
-          return state;
-        },
-        step(...args) {
-          const state = original.step(...args);
-          window.testState = structuredClone(state);
-          return state;
-        },
-      };
-    });
+    await observeSimulation(page);
     await page.locator("#primary").click();
     async function ticks(key, count) {
-      const target = await page.evaluate(() => window.testState.tick) + count;
       if (key) await page.keyboard.down(key);
-      await page.clock.runFor(Math.max(0, count * 100 - 16));
-      for (let attempt = 0; attempt < 4; attempt++) {
-        if (await page.evaluate(() => window.testState.tick) >= target) break;
-        await page.clock.runFor(16);
-      }
+      await advanceTicks(page, count);
       if (key) await page.keyboard.up(key);
-      expect(await page.evaluate(() => window.testState.tick)).toBe(target);
     }
 
     for (const [key, count] of [
@@ -127,6 +135,131 @@ for (const protocol of ["file", "http"]) {
     await ticks(null, 1);
     expect(await page.evaluate(() => window.testState.remainingTicks)).toBe(1199);
     expect(errors).toEqual([]);
+  });
+
+  test(`Simuliertes Standard-Gamepad über ${protocol}: Spiel, Menüs und Hotplugging`, async ({ page }) => {
+    await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
+    await page.addInitScript(() => {
+      window.fakePad = { index: 0, connected: true, mapping: "standard", axes: [0, 0],
+        buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+      window.fakePads = [window.fakePad];
+      Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => window.fakePads });
+    });
+    await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
+    await expect(page.locator("#primary")).toBeEnabled();
+    await observeSimulation(page);
+    async function setButtons(indices) {
+      await page.evaluate((pressed) => {
+        window.fakePad.buttons = Array.from({ length: 17 }, (_, index) => ({ pressed: pressed.includes(index), value: Number(pressed.includes(index)) }));
+      }, indices);
+    }
+    async function press(indices) {
+      await setButtons(indices);
+      await page.clock.runFor(32);
+    }
+    await press([0]);
+    await expect(page.locator("#overlay")).toBeHidden();
+    await expect(page.locator("#input-hints")).toContainText("Gamepad");
+    await press([]);
+    await setButtons([0, 15]);
+    await advanceTicks(page, 1);
+    expect(await page.evaluate(() => window.testState.playerIndex)).toBe(21);
+    expect(await page.evaluate(() => window.testState.board[22].type)).toBe("empty");
+    await press([]);
+
+    await press([9]);
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    const paused = await page.evaluate(() => window.testState);
+    await page.clock.runFor(1000);
+    expect(await page.evaluate(() => window.testState)).toEqual(paused);
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    await press([]);
+    await press([1]);
+    await expect(page.locator("#overlay")).toBeHidden();
+    await press([]);
+
+    await press([3]);
+    await expect(page.locator("#dialog-title")).toHaveText("Neu beginnen?");
+    await expect(page.locator("#secondary")).toBeFocused();
+    await press([]);
+    await press([14]);
+    await expect(page.locator("#primary")).toBeFocused();
+    await press([]);
+    await press([0]);
+    await expect(page.locator("#overlay")).toBeHidden();
+    await page.clock.runFor(500);
+    expect(await page.evaluate(() => window.testState.tick)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.testState.playerIndex)).toBe(21);
+    await press([]);
+
+    for (const [direction, count] of [
+      [15, 3], [13, 1], [15, 2], [13, 5], [14, 3], [13, 1],
+      [15, 3], [12, 1], [15, 8], [12, 3], [13, 5], [15, 3],
+    ]) {
+      await setButtons([direction]);
+      await advanceTicks(page, count);
+    }
+    await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
+    await press([]);
+    await press([0]);
+    await press([]);
+    await setButtons([15]);
+    await advanceTicks(page, 1);
+    await page.evaluate(() => {
+      window.fakePads = [];
+      const event = new Event("gamepaddisconnected");
+      Object.defineProperty(event, "gamepad", { value: window.fakePad });
+      window.dispatchEvent(event);
+    });
+    await expect(page.locator("#dialog-text")).toContainText("Controller wurde getrennt");
+    const disconnected = await page.evaluate(() => window.testState);
+    await page.clock.runFor(2000);
+    expect(await page.evaluate(() => window.testState)).toEqual(disconnected);
+    await page.evaluate(() => { window.fakePads = [window.fakePad]; });
+    await press([]);
+    await press([0]);
+    await expect(page.locator("#overlay")).toBeHidden();
+    await press([]);
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+    await press([0]);
+    await page.clock.runFor(500);
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.clock.runFor(64);
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    await press([]);
+    await press([0]);
+    await expect(page.locator("#overlay")).toBeHidden();
+    await press([]);
+    await press([1]);
+    await expect(page.locator("#feature-notice")).toContainText("folgt in S07");
+    await press([]);
+    await page.keyboard.press("KeyM");
+    await expect(page.locator("#feature-notice")).toContainText("S14");
+    await expect(page.locator("#input-hints")).toContainText("Tastatur");
+    await page.locator("#pause").click();
+    await expect(page.locator("#input-hints")).toContainText("Maus");
+  });
+}
+
+for (const mode of ["missing", "blocked", "mapping"]) {
+  test(`Gamepad-Einschränkung ${mode} wird erklärt; Tastatur bleibt nutzbar`, async ({ page }) => {
+    await page.addInitScript((mode) => {
+      Object.defineProperty(navigator, "getGamepads", { configurable: true, value: mode === "missing" ? undefined : () => {
+        if (mode === "blocked") throw new DOMException("Test", "SecurityError");
+        return [{ index: 0, connected: true, mapping: "", axes: [0, 0], buttons: [] }];
+      } });
+    }, mode);
+    await page.goto(pathToFileURL(path.join(root, "index.html")).href);
+    await expect(page.locator("#gamepad-status")).toContainText(
+      mode === "missing" ? "nicht verfügbar" : mode === "blocked" ? "SecurityError" : "kein Standard-Mapping",
+    );
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#overlay")).toBeHidden();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("KeyP");
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
   });
 }
 
