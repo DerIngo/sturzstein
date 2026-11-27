@@ -113,5 +113,9 @@ Das mitgelieferte Beispiel gewinnt nach 38 Ticks mit 116,2 Sekunden Restzeit und
 Seit S09 liegen außerdem `glutkaefer-tor.json` und `kristallkette.json` im selben Replayverzeichnis.
 Beide gewinnen nach 21 Ticks mit 87,9 Sekunden Restzeit; die Kristallkette erfordert erst erzeugte Edelsteine.
 Gegnerbewegungen und Explosionen entstehen aus derselben Simulation, ohne zusätzliche Replayfelder.
+In S10 gewinnt `gruene-kammer.json` nach 79 Ticks mit 82,1 Sekunden Restzeit durch Einschließung
+der Amöbe. `drei-schaechte.json` zeigt beide Wandlungen, den blockierten Auslass und den Ablauf
+des gemeinsamen Timers. Es gewinnt nach 62 Ticks mit 83,8 Sekunden Restzeit. Beide Lösungen
+verwenden Format 2. Wachstumsauswahl und Wandphasen ergeben sich vollständig beim Nachspielen.
 Tests vergleichen außerdem den vollständigen Zustand an jeder Tickgrenze über wiederholte Läufe
 sowie heruntergeladene Browseraufzeichnungen mit ihrem tatsächlichen Endzustand.

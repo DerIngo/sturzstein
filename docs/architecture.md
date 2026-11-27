@@ -12,6 +12,7 @@ S06 ergänzt tickgenaue Browseraufzeichnung, JSON-Export und eine DOM-unabhängi
 S07 ergänzt begrenzten Rückspulverlauf, Wiederherstellung nach Niederlage und verzweigte Replays.
 S08 ergänzt versionierte lokale Speicherung mit bewusster Wiederaufnahme, Fortschritt und getrennten Bestwerten.
 S09 ergänzt Wandfolge-Gegner, Explosionsketten, eigene animierte Sprites und zwei weitere Beispielhöhlen.
+S10 ergänzt die Amöbe und die zeitgesteuerte Umwandlungswand.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
 Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
@@ -46,7 +47,7 @@ Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-Syst
 Klassische Skripte registrieren ihre APIs unter `globalThis.Sturzstein`. Reine Module exportieren
 zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine transpilierten Quellen.
 
-| Datei/Bereich (S02–S09) | Vertrag |
+| Datei/Bereich (S02–S10) | Vertrag |
 |---|---|
 | `js/levels.js` | `parsePack(text, source)`, `validatePack(value, source)` liefern ein normalisiertes Pack oder werfen einen beschreibenden Fehler |
 | `js/simulation.js` | `createState(pack, levelId)` erzeugt einen neuen Zustand; `step(state, {direction, grab})` verändert ihn um genau einen Tick |
@@ -77,7 +78,8 @@ Ein JSON-serialisierbares Objekt enthält:
 - `rngState` als 32-Bit-Zahl und Mechanikparameter;
 - `push` mit Zielindex, Richtung und bisheriger Haltedauer;
 - Gegner mit `direction`, Explosionen mit `remainingTicks` und `result`;
-- geplant für S10: Amöbenzustand und Wandtimer.
+- Amöbenzellen als `amoeba`, in Höhlen mit Umwandlungswand außerdem `wallActivatedAt`
+  und je `magicWall` der letzte blockierte Treffer `blockedAt`.
 
 Felsen/Edelsteine tragen `falling`. Die Daten enthalten keine DOM-Referenzen, Funktionen, Maps oder Sets.
 Kurzlebige Verarbeitungssätze innerhalb eines Ticks werden nicht gespeichert; Snapshots entstehen nur an Tickgrenzen.
@@ -119,6 +121,27 @@ Vor Ersetzung der Partie steht ein Bestätigungsdialog; Abbrechen erhält auch e
 Speicherung. Fortschritt und Bestwerte bleiben ID-basiert. Dies ersetzt nicht die vollständige Levelauswahl S12.
 Zwei Spritephasen je Gegner, eine Drehung zur Blickrichtung und vier Explosionsphasen machen die Zustände
 sichtbar, ohne Simulationsdaten oder Tickdauer zu verändern.
+
+## Amöbe und Umwandlungswand (S10)
+
+Nach der Gegnerphase sammelt die Simulation alle Amöbenzellen und ihre freien oder mit Erde
+gefüllten orthogonalen Nachbarfelder. Ein Set zählt jedes Ziel einmal, auch zwischen getrennten
+Amöben. Zum Wachstumstick wird die Front nach Rasterindex sortiert. Genau ein Aufruf von
+`nextRandom` wählt das Ziel. Nach dem Wachstum entfällt dieses Feld aus der Front, seine
+geeigneten Nachbarn kommen hinzu. Zellzahl und Front reichen für die sofortige gemeinsame
+Umwandlung aus. Am Tickende tragen erzeugte Felsen und Edelsteine neue IDs und sind ruhend.
+
+Beim ersten fallenden Treffer hält `wallActivatedAt` für die ganze Höhle den aktuellen Tick fest.
+Die aktive Zeit endet zu Beginn von Tick `wallActivatedAt + magicWallTicks`. In der Fallphase
+belegt eine erfolgreiche Ausgabe das freie Feld mit einer neuen Objekt-ID. Diese ID kommt erst
+in der Fallliste des nächsten Ticks vor. Bei blockierter Ausgabe speichert das getroffene Wandfeld
+den Tick in `blockedAt`. Der Renderer zeichnet dort kurz ein blinkendes rotes Kreuz. Die Pfeile
+an der Wand wechseln bei Aktivierung von Kupfer zu laufendem Violett, nach Ablauf erscheint ein
+grauer Strich. Auch der Puls der Amöbe folgt allein dem gespeicherten Zustand.
+
+Das Einstiegspack erhält durch Anhängen der beiden Beispielhöhlen Revision 3. Die drei vorhandenen
+Level behalten Inhalt, Revision und Seed. Für ihre Zustandsform sowie die Speicher- und Replayversionen
+gilt die [Kompatibilitätsentscheidung im Speicherformat](storage-format.md#vollständige-partie-und-fortsetzen).
 
 ## Entwicklungswerkzeuge und Prüfungen
 

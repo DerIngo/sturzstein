@@ -39,8 +39,8 @@ Unbekannte Felder werden abgewiesen, damit Schreibfehler nicht still andere Rege
 
 Startzustände wie Explosion oder fallender Fels werden nicht im Kartenformat angeboten.
 Sie entstehen durch die Simulation. Seit S09 werden alle acht Gegnersymbole einschließlich
-Startorientierung unterstützt. Amöbe und Umwandlungswand werden bis S10 mit einer ausdrücklichen
-Fehlermeldung abgewiesen, auch wenn die Symboltabelle sie bereits beschreibt.
+Startorientierung unterstützt. Seit S10 teilen alle `A` eine Wachstumsfront und alle `M`
+die Aktivierungszeit ihres Levels. Eine Umwandlungswand beginnt bereit für den ersten fallenden Treffer.
 
 ## Grenzen und Parameter
 

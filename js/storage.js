@@ -80,17 +80,22 @@
     for (const key of Object.keys(initial.parameters)) {
       if (state.parameters[key] !== initial.parameters[key]) fail(`Zustand.parameters.${key}`, "Passt nicht zum aktuellen Level.");
     }
+    if (Object.hasOwn(initial, "wallActivatedAt") && state.wallActivatedAt !== null) {
+      integer(state.wallActivatedAt, "Zustand.wallActivatedAt", 2, state.tick);
+    }
     if (!Array.isArray(state.board) || state.board.length !== initial.board.length) fail("Zustand.board", "Falsche Rastergröße.");
     const ids = new Set();
     let players = 0;
+    let amoebas = 0;
     for (const [index, cell] of state.board.entries()) {
       const path = `Zustand.board[${index}]`;
       const falling = cell?.type === "rock" || cell?.type === "gem";
       const enemy = cell && Simulation.isEnemy(cell);
       const explosion = cell?.type === "explosion";
       object(cell, path, ["type", "id", ...(falling ? ["falling"] : []),
-        ...(enemy ? ["direction"] : []), ...(explosion ? ["remainingTicks", "result"] : [])]);
-      if (!["empty", "earth", "steel", "wall", "rock", "gem", "player", "exit", "beetle", "butterfly", "explosion"].includes(cell.type)) fail(path, "Unbekannter Zelltyp.");
+        ...(enemy ? ["direction"] : []), ...(explosion ? ["remainingTicks", "result"] : []),
+        ...(cell?.type === "magicWall" ? ["blockedAt"] : [])]);
+      if (!["empty", "earth", "steel", "wall", "rock", "gem", "player", "exit", "beetle", "butterfly", "explosion", "amoeba", "magicWall"].includes(cell.type)) fail(path, "Unbekannter Zelltyp.");
       integer(cell.id, `${path}.id`, cell.type === "empty" ? 0 : 1, cell.type === "empty" ? 0 : state.nextId - 1);
       if (cell.id && ids.has(cell.id)) fail(path, "Doppelte Objekt-ID.");
       if (cell.id) ids.add(cell.id);
@@ -101,14 +106,26 @@
         if (!["empty", "gem"].includes(cell.result)) fail(`${path}.result`, "Ungültiges Explosionsergebnis.");
         if (state.tick === 0) fail(path, "Explosion vor dem ersten Tick.");
       }
-      if (initial.board[index].type === "steel" && (cell.type !== "steel" || cell.id !== initial.board[index].id)) fail(path, "Stahlwand wurde verändert.");
-      if (cell.type === "steel" && initial.board[index].type !== "steel") fail(path, "Zusätzliche Stahlwand.");
+      const start = initial.board[index];
+      if (start.type === "steel" || start.type === "magicWall" || cell.type === "steel" || cell.type === "magicWall") {
+        if (cell.type !== start.type || cell.id !== start.id) fail(path, "Unzerstörbare Wand wurde verändert.");
+      }
+      if (cell.type === "magicWall" && cell.blockedAt !== null) {
+        if (state.wallActivatedAt === null) fail(path, "Blockierte Ausgabe vor Wandaktivierung.");
+        const lastActive = state.wallActivatedAt + state.parameters.magicWallTicks - 1;
+        integer(cell.blockedAt, `${path}.blockedAt`, state.wallActivatedAt, Math.min(state.tick, lastActive));
+      }
+      if (cell.type === "amoeba") amoebas++;
+      if (state.tick === 0 && (cell.type === "amoeba" || start.type === "amoeba")
+        && (cell.type !== start.type || cell.id !== start.id)) fail(path, "Amöbe passt nicht zum Anfangsraster.");
       if (cell.type === "player") {
         players++;
         if (index !== state.playerIndex) fail(path, "Spielerposition widerspricht dem Raster.");
       }
       if (cell.type === "exit" && index !== state.exitIndex) fail(path, "Falsche Ausgangsposition.");
     }
+    if (amoebas && !initial.board.some((cell) => cell.type === "amoeba")) fail("Zustand.board", "Amöbe ohne Anfangsbestand.");
+    if (state.tick > 0 && amoebas > state.parameters.amoebaMaxCells) fail("Zustand.board", "Amöbe über der Wachstumsgrenze.");
     const lateExit = state.status === "lost" && state.remainingTicks === 0
       && state.playerIndex === state.exitIndex && state.board[state.exitIndex].type === "player";
     if (state.board[state.exitIndex].type !== "exit" && !lateExit) fail("Zustand.exitIndex", "Ausgang fehlt.");

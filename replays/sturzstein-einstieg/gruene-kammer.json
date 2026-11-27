@@ -1,0 +1,17 @@
+{
+  "formatVersion": 2,
+  "packId": "sturzstein-einstieg",
+  "levelId": "gruene-kammer",
+  "levelRevision": 1,
+  "ruleVersion": 1,
+  "seed": 537,
+  "usedRewind": false,
+  "inputs": [
+    { "ticks": 4, "direction": "right", "grab": false },
+    { "ticks": 56, "direction": null, "grab": false },
+    { "ticks": 3, "direction": "right", "grab": false },
+    { "ticks": 4, "direction": "left", "grab": false },
+    { "ticks": 3, "direction": "down", "grab": false },
+    { "ticks": 9, "direction": "right", "grab": false }
+  ]
+}

@@ -5,7 +5,8 @@ const path = require("node:path");
 const zlib = require("node:zlib");
 const size = 16;
 const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "player",
-  "beetle", "butterfly", "beetleStep", "butterflyStep", "explosion3", "explosion2", "explosion1", "explosion0"];
+  "beetle", "butterfly", "beetleStep", "butterflyStep", "explosion3", "explosion2", "explosion1", "explosion0",
+  "amoeba", "amoebaPulse", "magicWall", "magicWallActive", "magicWallFlow", "magicWallSpent", "blockedOutlet"];
 const width = size * names.length;
 const pixels = Buffer.alloc(width * size * 4);
 let offset = 0;
@@ -155,6 +156,52 @@ for (const [index, name] of names.entries()) {
         pixel(x, y, distance < radius / 2 ? "fff3b5" : distance < radius ? "f2a04b" : "aa4250");
       }
     }
+  }
+  if (name.startsWith("amoeba")) {
+    const pulse = name === "amoebaPulse" ? 1 : 0;
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      // Drei überlappende Lappen mit wandernden Bläschen.
+      const distance = Math.min(
+        (x - 6) ** 2 + (y - 6 - pulse) ** 2,
+        (x - 10 - pulse) ** 2 + (y - 9) ** 2,
+        (x - 4 - pulse) ** 2 + (y - 10) ** 2,
+      );
+      if (distance <= 24) pixel(x, y, distance > 15 ? "295649" : "68a941");
+    }
+    rect(3, 5 + pulse, 4, 2, "c1e980");
+    rect(5, 4 + pulse, 2, 1, "e3f5ab");
+    rect(9 + pulse, 8, 3, 2, "355f46");
+    pixel(10 + pulse, 8, "abdc69");
+    pixel(5 + pulse, 11, "467847");
+  }
+  if (name.startsWith("magicWall")) {
+    const active = name === "magicWallActive" || name === "magicWallFlow";
+    const spent = name === "magicWallSpent";
+    const rim = active ? "cf9aff" : spent ? "596575" : "ca9966";
+    rect(0, 0, 16, 16, "302e40");
+    rect(0, 1, 16, 2, rim);
+    rect(0, 13, 16, 2, rim);
+    rect(1, 4, 2, 8, "686779");
+    rect(13, 4, 2, 8, "686779");
+    rect(4, 3, 8, 10, active ? "573c7b" : "232b3a");
+    if (spent) {
+      rect(5, 7, 6, 2, "6a6b78");
+    } else {
+      const shift = name === "magicWallFlow" ? 2 : 0;
+      for (const y of active ? [3, 7] : [6]) for (let x = 0; x < 3; x++) {
+        const color = active ? "f4d5ff" : "e1b780";
+        pixel(5 + x, y + x + shift, color);
+        pixel(10 - x, y + x + shift, color);
+      }
+    }
+  }
+  if (name === "blockedOutlet") {
+    rect(3, 4, 10, 8, "823b47");
+    for (let i = 0; i < 6; i++) {
+      rect(4 + i, 5 + i, 2, 1, "ffb092");
+      rect(9 - i, 5 + i, 2, 1, "ffb092");
+    }
+    rect(2, 13, 12, 2, "ff765c");
   }
 }
 function crc32(data) {

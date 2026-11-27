@@ -1,8 +1,7 @@
 # Sturzstein-Regeln, Version 1
 
 Entwurf aus S01 für eine eigenständige Umsetzung, keine C64-Emulation.
-Das vollständige Regelwerk ist das Implementierungsziel; Gegner/Explosionen sind seit S09 implementiert,
-Amöbe und Umwandlungswand folgen in S10. Noch fehlende Mechaniken werden beim Laden abgewiesen.
+Gegner und Explosionen sind seit S09 spielbar, Amöbe und Umwandlungswand seit S10.
 
 ## Zeit, Bewegung und Wertung
 
@@ -133,7 +132,7 @@ Bei mehrschichtiger Wand ist nur die unmittelbare Ausgabeposition maßgeblich; k
 | Amöbe gleichzeitig eingeschlossen und zu groß | Felsen statt Edelsteine |
 | Wand wird bei blockierter Ausgabe getroffen | Aktivierung und Verbrauch, keine Ausgabe |
 
-Grundregeln sowie Gegner-/Explosionsfälle sind seit S03 bzw. S09 automatisiert geprüft.
-Die Amöben-/Umwandlungswand-Szenarien bleiben Prüfvorgaben für S10.
+Automatisierte Rastertests prüfen diese Fälle einschließlich der gemeinsamen Wachstumsfront
+und des letzten aktiven Wandticks. Die Lösungsreplays decken dieselben Regeln in spielbaren Höhlen ab.
 Historische Referenzen stehen in `PROMPT.md`. Scanfolge, deterministisches Schieben, Prioritäten und
 Sonderregeln hier sind eigene Festlegungen; Fremdlevel-Kompatibilität wird nicht behauptet.

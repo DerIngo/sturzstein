@@ -47,14 +47,14 @@ async function observeSimulation(page) {
   });
 }
 
-async function advanceTicks(page, count) {
-  const target = await page.evaluate(() => window.testState.tick) + count;
+async function advanceTicks(page, count, fromTick) {
+  const target = (fromTick ?? await page.evaluate(() => window.testState.tick)) + count;
   await page.clock.runFor(Math.max(0, count * 100 - 16));
   for (let attempt = 0; attempt < 4; attempt++) {
-    if (await page.evaluate(() => window.testState.tick) >= target) break;
+    if (await page.evaluate(() => window.testState?.tick) >= target) break;
     await page.clock.runFor(16);
   }
-  expect(await page.evaluate(() => window.testState.tick)).toBe(target);
+  expect(await page.evaluate(() => window.testState?.tick)).toBe(target);
 }
 
 async function rewindTicks(page, count) {
@@ -322,7 +322,75 @@ for (const protocol of ["file", "http"]) {
       expect(Replay.play(pack, replay).state).toEqual(await page.evaluate(() => window.testState));
       expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).session, storageKey)).toBe(null);
     }
-    await expect(page.locator("#progress-status")).toContainText("2 / 3 gelöst");
+    await expect(page.locator("#progress-status")).toContainText(`2 / ${pack.levels.length} gelöst`);
+    await expect(page.locator("#next-level")).toContainText("Die grüne Kammer");
+    expect(errors).toEqual([]);
+  });
+
+  test(`Amöbe und Umwandlungswand über ${protocol}: Freischalten, Spielen, Fortsetzen und Replayexport`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const oldLevel = "kristallkette";
+    const profile = {
+      formatVersion: 1, settings: { showHints: true }, bests: [],
+      progress: pack.levels.slice(0, 3).map((l, i) => ({ packId: pack.id, levelId: l.id, solved: i === 0, unlocked: true })),
+      session: { state: Sim.createState(pack, oldLevel), replay: new Replay.Recorder(pack, oldLevel).replay },
+    };
+    await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
+    await page.addInitScript(({ key, profile }) => {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(profile));
+    }, { key: storageKey, profile });
+    await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
+    await expect(page.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+    await expect(page.locator("#progress-status")).toContainText("4 freigeschaltet");
+    await observeSimulation(page);
+
+    async function playBlock({ ticks, direction, grab }) {
+      const key = { right: "ArrowRight", left: "ArrowLeft", down: "ArrowDown", up: "ArrowUp" }[direction];
+      if (grab) await page.keyboard.down("Space");
+      if (key) await page.keyboard.down(key);
+      await advanceTicks(page, ticks);
+      if (key) await page.keyboard.up(key);
+      if (grab) await page.keyboard.up("Space");
+    }
+    for (const id of ["gruene-kammer", "drei-schaechte"]) {
+      const level = pack.levels.find((entry) => entry.id === id);
+      const solution = require(`../../replays/sturzstein-einstieg/${id}.json`);
+      await page.locator("#next-level").click();
+      await expect(page.locator("#dialog-text")).toContainText(level.description);
+      await page.locator("#primary").click();
+      const [approach, wait, ...finish] = solution.inputs;
+      await playBlock(approach);
+      // Einen Tick vor der Verwandlung bzw. direkt beim blockierten Auslass anhalten.
+      const waitBeforeSave = id === "gruene-kammer" ? wait.ticks - 1 : 0;
+      if (waitBeforeSave) await playBlock({ ...wait, ticks: waitBeforeSave });
+      const before = await page.evaluate(() => window.testState);
+      if (id === "gruene-kammer") expect(before.board.filter((c) => c.type === "amoeba")).toHaveLength(6);
+      else expect(before.board.some((c) => c.blockedAt === before.tick)).toBe(true);
+      await page.keyboard.press("KeyP");
+      await page.reload();
+      await expect(page.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+      expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).session.state, storageKey)).toEqual(before);
+      await observeSimulation(page);
+      await page.locator("#primary").click();
+      await advanceTicks(page, 1, before.tick);
+      const expected = structuredClone(before);
+      Sim.step(expected, wait);
+      expect(await page.evaluate(() => window.testState)).toEqual(expected);
+      await page.keyboard.down("KeyZ");
+      await rewindTicks(page, 1);
+      expect(await page.evaluate(() => window.testState)).toEqual(before);
+      await page.keyboard.up("KeyZ");
+      await page.clock.runFor(16);
+      await playBlock({ ...wait, ticks: wait.ticks - waitBeforeSave });
+      for (const block of finish) await playBlock(block);
+      await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
+      const replay = await downloadReplay(page);
+      expect(replay).toEqual({ ...solution, usedRewind: true });
+      expect(Replay.play(pack, replay).state).toEqual(await page.evaluate(() => window.testState));
+    }
+    await expect(page.locator("#progress-status")).toContainText("5 freigeschaltet");
     expect(errors).toEqual([]);
   });
 

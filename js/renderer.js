@@ -1,7 +1,8 @@
 (function (root) {
   "use strict";
   const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "player",
-    "beetle", "butterfly", "beetleStep", "butterflyStep", "explosion3", "explosion2", "explosion1", "explosion0"];
+    "beetle", "butterfly", "beetleStep", "butterflyStep", "explosion3", "explosion2", "explosion1", "explosion0",
+    "amoeba", "amoebaPulse", "magicWall", "magicWallActive", "magicWallFlow", "magicWallSpent", "blockedOutlet"];
   const clamp = (n, min, max) => Math.max(min, Math.min(n, max));
   class Renderer {
     constructor(canvas, image) {
@@ -78,9 +79,20 @@
           px = old % state.width + (x - old % state.width) * alpha;
           py = Math.floor(old / state.width) + (y - Math.floor(old / state.width)) * alpha;
         }
-        const type = cell.type === "explosion" ? `explosion${cell.remainingTicks}`
-          : enemy && state.tick % 2 ? `${cell.type}Step` : cell.type;
+        let type = cell.type;
+        if (type === "explosion") type = `explosion${cell.remainingTicks}`;
+        else if (enemy && state.tick % 2) type += "Step";
+        else if (type === "amoeba" && Math.floor((state.tick + cell.id) / 3) % 2) type = "amoebaPulse";
+        else if (type === "magicWall") {
+          const phase = root.Sturzstein.Simulation.magicWallPhase(state);
+          if (phase === "spent") type = "magicWallSpent";
+          if (phase === "active") type = state.tick % 2 ? "magicWallActive" : "magicWallFlow";
+        }
         sprite(type, px, py, enemy ? cell.direction : null);
+        if (cell.type === "magicWall" && cell.blockedAt !== null) {
+          const age = state.tick - cell.blockedAt;
+          if (age < 5 && age !== 2) sprite("blockedOutlet", px, py);
+        }
       }
     }
   }

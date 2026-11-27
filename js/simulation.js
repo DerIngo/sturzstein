@@ -10,6 +10,7 @@
     "@": "player", O: "rock", "*": "gem", X: "exit",
     u: "beetle", r: "beetle", d: "beetle", l: "beetle",
     U: "butterfly", R: "butterfly", D: "butterfly", L: "butterfly",
+    A: "amoeba", M: "magicWall",
   });
   const empty = () => ({ type: "empty", id: 0 });
   const rounded = (cell) => cell.type === "rock" || cell.type === "gem";
@@ -26,6 +27,7 @@
       const cell = { type, id: nextId++ };
       if (rounded(cell)) cell.falling = false;
       if (isEnemy(cell)) cell.direction = headings["urdl".indexOf(symbol.toLowerCase())];
+      if (type === "magicWall") cell.blockedAt = null;
       return cell;
     });
     return {
@@ -49,6 +51,7 @@
       reason: null,
       rngState: level.seed,
       parameters: { ...level.parameters },
+      ...(board.some((cell) => cell.type === "magicWall") ? { wallActivatedAt: null } : {}),
       push: null,
     };
   }
@@ -67,6 +70,57 @@
   function move(state, from, to) {
     state.board[to] = state.board[from];
     state.board[from] = empty();
+  }
+
+  function magicWallPhase(state) {
+    if (state.wallActivatedAt === null) return "ready";
+    return state.tick - state.wallActivatedAt < state.parameters.magicWallTicks ? "active" : "spent";
+  }
+
+  function hitMagicWall(state, from, wall) {
+    if (state.wallActivatedAt === null) state.wallActivatedAt = state.tick;
+    if (magicWallPhase(state) === "spent") {
+      state.board[from].falling = false;
+      return;
+    }
+    const result = state.board[from].type === "rock" ? "gem" : "rock";
+    state.board[from] = empty();
+    const output = wall + state.width;
+    if (state.board[output].type === "empty") {
+      state.board[output] = { type: result, id: state.nextId++, falling: true };
+    } else state.board[wall].blockedAt = state.tick;
+  }
+
+  function updateAmoeba(state) {
+    const cells = [];
+    const front = new Set();
+    function addTargets(index) {
+      // Der geschlossene Stahlrand hält jede Amöbe im Inneren des Rasters.
+      for (const target of [index - state.width, index - 1, index + 1, index + state.width]) {
+        const type = state.board[target].type;
+        if (type === "earth" || type === "empty") front.add(target);
+      }
+    }
+    for (let index = 0; index < state.board.length; index++) {
+      if (state.board[index].type === "amoeba") {
+        cells.push(index);
+        addTargets(index);
+      }
+    }
+    if (!cells.length) return;
+    const { amoebaMaxCells, amoebaGrowthTicks } = state.parameters;
+    if (cells.length <= amoebaMaxCells && front.size && state.tick % amoebaGrowthTicks === 0) {
+      const sorted = [...front].sort((a, b) => a - b);
+      const target = sorted[nextRandom(state) % sorted.length];
+      state.board[target] = { type: "amoeba", id: state.nextId++ };
+      cells.push(target);
+      front.delete(target);
+      addTargets(target);
+    }
+    if (cells.length > amoebaMaxCells || !front.size) {
+      const type = cells.length > amoebaMaxCells ? "rock" : "gem";
+      for (const index of cells) state.board[index] = { type, id: state.nextId++, falling: false };
+    }
   }
 
   function explode(state, centers) {
@@ -171,6 +225,10 @@
       const below = neighbor(state, index, 0, 1);
       if (below < 0) { cell.falling = false; continue; }
       const support = state.board[below];
+      if (support.type === "magicWall" && cell.falling) {
+        hitMagicWall(state, index, below);
+        continue;
+      }
       if (isEnemy(support) && cell.falling) {
         explode(state, [below]);
         continue;
@@ -219,6 +277,7 @@
       }
       enemyContact(state);
     }
+    updateAmoeba(state);
     state.remainingTicks--;
     if (state.status === "lost") return state;
     if (state.remainingTicks <= 0) {
@@ -231,7 +290,7 @@
     return state;
   }
 
-  const api = Object.freeze({ TICK_MS, directions, isEnemy, createState, step, nextRandom });
+  const api = Object.freeze({ TICK_MS, directions, isEnemy, magicWallPhase, createState, step, nextRandom });
   (root.Sturzstein ??= {}).Simulation = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(globalThis);

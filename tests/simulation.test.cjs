@@ -197,11 +197,11 @@ test("Kartenrand kann nicht betreten oder umgangen werden", () => {
   assert.equal(s.playerIndex, 8);
 });
 
-function arena(placements) {
+function arena(placements, parameters = {}) {
   const map = Array.from({ length: 9 }, (_, y) => Array.from({ length: 9 }, (_, x) =>
     x === 0 || y === 0 || x === 8 || y === 8 ? "#" : "."));
   for (const [x, y, symbol] of [[1, 1, "@"], [7, 7, "X"], ...placements]) map[y][x] = symbol;
-  return state(map.map((row) => row.join("")), { quota: 0 });
+  return state(map.map((row) => row.join("")), { quota: 0, parameters });
 }
 
 test("Beide Wandfolgen respektieren alle Startorientierungen und vier Prioritäten; eingesperrte Gegner drehen nicht", () => {
@@ -354,4 +354,118 @@ test("Neue Höhlen starten ungefährlich und erlauben sicheres Warten am Auslös
       assert.equal(s.playerIndex, 2 * s.width + 6);
     }
   }
+});
+
+test("Getrennte Amöben wählen gemeinsam aus der eindeutigen Front in Rasterreihenfolge", () => {
+  const map = ["#########", "#@++X+++#", "#+A A.++#", "#+.. .++#", "#+++++++#", "#########"];
+  // Frontindizes 21, 23, 29, 31. Die 21 ist von beiden Zellen erreichbar.
+  for (const [seed, rngState, target] of [[0, 1013904223, 31], [1, 1015568748, 21]]) {
+    const s = state(map, { seed, parameters: { amoebaGrowthTicks: 2 } });
+    go(s);
+    assert.equal(s.rngState, seed);
+    assert.equal(s.board.filter((c) => c.type === "amoeba").length, 2);
+    go(s);
+    assert.equal(s.rngState, rngState);
+    assert.equal(s.board[target].type, "amoeba");
+    assert.equal(s.board.filter((c) => c.type === "amoeba").length, 3);
+  }
+});
+
+test("Einschließung und Übergröße gelten für die gesamte Masse vor und nach dem Wachstum", () => {
+  const map = ["#########", "#@X+++++#", "#+A.+A++#", "#+++++++#", "#########"];
+  for (const [limit, result, grew] of [[1, "rock", false], [2, "rock", true], [3, "gem", true]]) {
+    const s = state(map, { seed: 0, parameters: { amoebaMaxCells: limit, amoebaGrowthTicks: 1 } });
+    go(s);
+    assert.equal(s.rngState, grew ? 1013904223 : 0);
+    for (const x of grew ? [2, 3, 5] : [2, 5]) {
+      assert.equal(cell(s, x, 2).type, result);
+      assert.equal(cell(s, x, 2).falling, false);
+    }
+    assert.equal(s.board.some((c) => c.type === "amoeba"), false);
+  }
+  const enclosed = state(["#######", "#@A+X+#", "#+++++#", "#+++++#", "#######"]);
+  go(enclosed, "right");
+  assert.equal(enclosed.playerIndex, 8);
+  assert.equal(enclosed.status, "playing");
+  assert.equal(cell(enclosed, 2, 1).type, "gem");
+  assert.equal(enclosed.rngState, 137);
+});
+
+test("Die Figur kann Amöbe weder betreten noch weggraben und bleibt vor Wachstum geschützt", () => {
+  const s = state(["#######", "#@A..X#", "#+++++#", "#+++++#", "#######"],
+    { parameters: { amoebaGrowthTicks: 1 } });
+  go(s, "right", true);
+  assert.equal(cell(s, 2, 1).type, "amoeba");
+  assert.equal(cell(s, 3, 1).type, "amoeba");
+  go(s, "right");
+  assert.equal(s.playerIndex, 8);
+  assert.equal(s.status, "playing");
+  assert.equal(s.board.filter((c) => c.type === "gem").length, 3);
+});
+
+test("Explosionen zerstören Amöbe vor der Wachstumsphase und lassen Umwandlungswände stehen", () => {
+  const s = arena([[4, 3, "O"], [4, 4, "u"], [3, 4, "A"], [4, 5, "M"]], { amoebaGrowthTicks: 1 });
+  const hit = structuredClone(s);
+  const wall = structuredClone(cell(s, 4, 5));
+  go(s);
+  assert.equal(cell(s, 4, 4).type, "beetle");
+  assert.equal(cell(s, 3, 4).type, "amoeba");
+  cell(hit, 4, 3).falling = true;
+  go(hit);
+  assert.deepEqual(cell(hit, 4, 5), wall);
+  assert.equal(cell(hit, 3, 4).type, "explosion");
+  for (let i = 0; i < 4; i++) go(hit);
+  assert.equal(cell(hit, 3, 4).type, "empty");
+  assert.equal(hit.board.some((c) => c.type === "amoeba" || c.type === "gem"), false);
+  assert.equal(hit.rngState, 137);
+});
+
+test("Eine blockierte erste Ausgabe startet die gemeinsame Wandzeit; der letzte aktive Treffer wird umgesetzt", () => {
+  const s = arena([[2, 3, "O"], [2, 4, " "], [2, 5, "M"], [2, 6, "M"], [2, 7, " "],
+    [4, 2, "*"], [4, 3, " "], [4, 4, " "], [4, 5, "M"], [4, 6, " "], [4, 7, " "],
+    [6, 1, "O"], [6, 2, " "], [6, 3, " "], [6, 4, " "], [6, 5, "M"], [6, 6, " "],
+    [7, 4, "*"], [7, 5, "M"]], { magicWallTicks: 2 });
+  const lateRock = cell(s, 6, 1).id;
+  go(s);
+  assert.equal(s.wallActivatedAt, null); // Ruhender Edelstein am vierten Schacht.
+  go(s);
+  assert.equal(s.wallActivatedAt, 2);
+  assert.equal(cell(s, 2, 4).type, "empty");
+  assert.equal(cell(s, 2, 5).blockedAt, 2);
+  assert.equal(cell(s, 2, 7).type, "empty");
+  go(s);
+  assert.equal(Sim.magicWallPhase(s), "active");
+  assert.equal(cell(s, 4, 6).type, "rock");
+  assert.equal(cell(s, 4, 6).falling, true);
+  go(s);
+  assert.equal(Sim.magicWallPhase(s), "spent");
+  assert.equal(cell(s, 4, 7).type, "rock");
+  assert.deepEqual(cell(s, 6, 4), { type: "rock", id: lateRock, falling: false });
+  assert.equal(cell(s, 6, 6).type, "empty");
+  go(s);
+  assert.equal(s.wallActivatedAt, 2);
+  assert.equal(cell(s, 7, 4).type, "gem");
+});
+
+test("Ein Tick Wandzeit erlaubt beide Umwandlungen beim gleichzeitigen Auftreffen, mit neuen Objekt-IDs", () => {
+  const s = arena([[3, 2, "O"], [5, 2, "*"], [3, 3, " "], [5, 3, " "], [3, 4, "M"], [5, 4, "M"],
+    [3, 5, " "], [5, 5, " "], [3, 6, " "], [5, 6, " "]], { magicWallTicks: 1 });
+  const next = s.nextId;
+  go(s);
+  go(s);
+  assert.deepEqual(cell(s, 3, 5), { type: "gem", id: next, falling: true });
+  assert.deepEqual(cell(s, 5, 5), { type: "rock", id: next + 1, falling: true });
+  assert.equal(s.wallActivatedAt, 2);
+  go(s);
+  assert.equal(Sim.magicWallPhase(s), "spent");
+  assert.equal(cell(s, 3, 6).id, next);
+  assert.equal(cell(s, 5, 6).id, next + 1);
+});
+
+test("Bei offenem Zugang versteinert die Amöbe in der Beispielhöhle", () => {
+  const s = Sim.createState(original, "gruene-kammer");
+  for (let tick = 0; tick < 70; tick++) go(s);
+  assert.equal(s.status, "playing");
+  assert.equal(s.board.filter((c) => c.type === "rock").length, 8);
+  assert.equal(s.board.some((c) => c.type === "amoeba" || c.type === "gem"), false);
 });

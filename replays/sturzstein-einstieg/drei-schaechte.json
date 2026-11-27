@@ -1,0 +1,17 @@
+{
+  "formatVersion": 2,
+  "packId": "sturzstein-einstieg",
+  "levelId": "drei-schaechte",
+  "levelRevision": 1,
+  "ruleVersion": 1,
+  "seed": 811,
+  "usedRewind": false,
+  "inputs": [
+    { "ticks": 15, "direction": "right", "grab": false },
+    { "ticks": 27, "direction": null, "grab": false },
+    { "ticks": 5, "direction": "down", "grab": false },
+    { "ticks": 11, "direction": "left", "grab": false },
+    { "ticks": 1, "direction": "up", "grab": true },
+    { "ticks": 3, "direction": "left", "grab": false }
+  ]
+}

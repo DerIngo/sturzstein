@@ -235,8 +235,11 @@ test("Änderungen einer anderen Registerkarte werden vor dem Schreiben erkannt u
   assert.equal(disk.text, latest);
 });
 
-for (const levelId of ["glutkaefer-tor", "kristallkette"]) {
-  test(`${levelId}: Replay, Speicherfortsetzung und Rückspulen erhalten Gegner und alle Explosionsphasen`, () => {
+for (const [levelId, expectedPhases] of [
+  ["glutkaefer-tor", [3, 2, 1, 0]], ["kristallkette", [3, 2, 1, 0]],
+  ["gruene-kammer", []], ["drei-schaechte", []],
+]) {
+  test(`${levelId}: Replay, Speicherfortsetzung und Rückspulen stimmen an jeder Tickgrenze überein`, () => {
     const solution = require(`../replays/sturzstein-einstieg/${levelId}.json`);
     const state = Sim.createState(pack, levelId);
     const recorder = new Replay.Recorder(pack, levelId);
@@ -266,7 +269,7 @@ for (const levelId of ["glutkaefer-tor", "kristallkette"]) {
       }
     }
     assert.equal(state.status, "won");
-    assert.deepEqual([...explosionPhases], [3, 2, 1, 0]);
+    assert.deepEqual([...explosionPhases], expectedPhases);
     assert.deepEqual(Replay.play(pack, recorder.replay).state, state);
     assert.ok(save.data.progress.find((entry) => entry.levelId === levelId).solved);
     for (let tick = state.tick - 1; tick >= 0; tick--) {
@@ -316,4 +319,47 @@ test("Gegner-/Explosionsdaten werden strikt validiert; Explosionstod bleibt fort
   assert.equal(state.status, "playing");
   assert.deepEqual(Storage.restoreSession({ state, replay: recorder.replay }, [source]).state, state);
   assert.deepEqual(Replay.play(source, recorder.replay, { requireWin: false }).state, state);
+});
+
+test("Wandtimer, blockierte Ausgaben und feste Wandpositionen werden strikt geprüft", () => {
+  const levelId = "drei-schaechte";
+  const state = Sim.createState(pack, levelId);
+  const recorder = new Replay.Recorder(pack, levelId);
+  for (let tick = 0; tick < 15; tick++) Sim.step(state, recorder.record({ direction: "right", grab: false }));
+  for (let tick = 0; tick < 30; tick++) Sim.step(state, recorder.record({ direction: null, grab: false }));
+  const outlet = (s) => s.board.find((c) => c.type === "magicWall" && c.blockedAt !== null);
+  assert.equal(state.wallActivatedAt, 7);
+  assert.equal(outlet(state).blockedAt, 15);
+  assert.deepEqual(Storage.restoreSession({ state, replay: recorder.replay }, [pack]).state, state);
+  for (const corrupt of [
+    (s) => { delete s.wallActivatedAt; },
+    (s) => { s.wallActivatedAt = 1; },
+    (s) => { s.wallActivatedAt = s.tick + 1; },
+    (s) => { s.wallActivatedAt = null; },
+    (s) => { outlet(s).blockedAt = 6; },
+    (s) => { outlet(s).blockedAt = 42; },
+    (s) => { delete outlet(s).blockedAt; },
+    (s) => { const index = s.board.indexOf(outlet(s)); [s.board[index], s.board[index + 1]] = [s.board[index + 1], s.board[index]]; },
+    (s) => { s.board.find((c) => c.type === "earth").type = "amoeba"; },
+  ]) {
+    const broken = structuredClone(state);
+    corrupt(broken);
+    assert.throws(() => Storage.restoreSession({ state: broken, replay: recorder.replay }, [pack]), /Speicherdaten/);
+  }
+});
+
+test("Alte Zustandsform ohne Wandtimer bleibt ladbar, zusätzliche Timer und übergroße Amöben werden abgewiesen", () => {
+  const { state, recorder } = run();
+  assert.equal(Object.hasOwn(state, "wallActivatedAt"), false);
+  assert.deepEqual(Storage.restoreSession({ state, replay: recorder.replay }, [pack]).state, state);
+  state.wallActivatedAt = null;
+  assert.throws(() => Storage.restoreSession({ state, replay: recorder.replay }, [pack]), /Unbekanntes Feld/);
+
+  const levelId = "gruene-kammer";
+  const green = Sim.createState(pack, levelId);
+  const recording = new Replay.Recorder(pack, levelId);
+  Sim.step(green, recording.record({ direction: null, grab: false }));
+  const soil = green.board.filter((c) => c.type === "earth");
+  for (const cell of soil.slice(0, green.parameters.amoebaMaxCells)) cell.type = "amoeba";
+  assert.throws(() => Storage.restoreSession({ state: green, replay: recording.replay }, [pack]), /Wachstumsgrenze/);
 });

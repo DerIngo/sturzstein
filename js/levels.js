@@ -3,7 +3,6 @@
 
   const limits = Object.freeze({ bytes: 1048576, levels: 100, side: 128, cells: 65536 });
   const symbols = " .#+@O*XurdlURDLAM";
-  const supported = " .#+@O*XurdlURDL";
   const defaults = Object.freeze({ amoebaGrowthTicks: 10, amoebaMaxCells: 200, magicWallTicks: 200 });
 
   function validatePack(value, source = "Levelpack") {
@@ -100,7 +99,6 @@
           const symbol = row[x];
           const cell = `${label}, Zeile ${y + 1}, Spalte ${x + 1}`;
           if (!symbols.includes(symbol)) fail(cell, `Unbekanntes Symbol ${JSON.stringify(symbol)}.`);
-          if (!supported.includes(symbol)) fail(cell, `Mechanik ${JSON.stringify(symbol)} ist noch nicht implementiert.`);
           if ((x === 0 || y === 0 || x === width - 1 || y === height - 1) && symbol !== "#") {
             fail(cell, "Kartenrand muss vollständig aus Stahl (#) bestehen.");
           }

@@ -5,16 +5,17 @@ Eigene Level, Grafiken und Regeln; keine Originalassets oder kopierten Originall
 
 ## Aktueller Umfang
 
-Der spielbare Stand enthält drei eigene Höhlen mit Graben, Sammeln, Schieben,
+Der spielbare Stand enthält fünf eigene Höhlen mit Graben, Sammeln, Schieben,
 Fall-/Abrollphysik, Zeitlimit, Sieg/Niederlage, Pause und Neustart.
 Seit S05 sind Standard-Gamepads und der Competition Pro (040b:6533) sowie geräteabhängige Bedienhinweise integriert.
 Seit S06 werden Partien als tickgenaue Replays aufgezeichnet und können heruntergeladen und geprüft werden.
 Seit S07 lässt sich der vollständige Spielzustand mindestens zehn Sekunden zurückspulen, auch nach einer Niederlage.
 Seit S08 bleiben Partie, Fortschritt, getrennte Bestwerte und die Einstellung für Bedienhinweise lokal gespeichert.
 Seit S09 sind Glutkäfer, Kristallfalter und verkettete 3×3-Explosionen integriert.
+Seit S10 wachsen Amöben seedgesteuert, und Umwandlungswände tauschen fallende Felsen und Edelsteine.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
-Amöbe, Umwandlungswand, Pack-Import und die vollständige Kampagne sind noch nicht implementiert.
+Pack-Import und vollständige Kampagne folgen in späteren Arbeitspaketen.
 
 ## Start
 
@@ -91,7 +92,7 @@ dass Soundeffekte und Tonsteuerung erst in S14 hinzukommen.
 
 Im Start-, Fortsetzen-, Pause- oder Ergebnisdialog führt **„Nächste Höhle: …“** zyklisch durch
 die freigeschalteten Höhlen. Ein Wechsel wird bestätigt, bevor er die aktuelle Partie ersetzt;
-„Zurück“ erhält sie unverändert. Alle drei Beispielhöhlen sind anfangs freigeschaltet.
+„Zurück“ erhält sie unverändert. Die ersten drei Höhlen sind anfangs freigeschaltet.
 Die vollständige Levelauswahl folgt in S12.
 
 - **Das Glutkäfer-Tor:** Orange Käfer folgen der linken Wand. Ein fallender Fels auf einem Käfer
@@ -112,6 +113,22 @@ Auch Gegnerrichtungen und laufende Explosionen werden zurückgespult und gespeic
 Beide neuen Höhlen haben geprüfte Lösungen mit je 21 Ticks und 87,9 Sekunden Restzeit.
 Der Nutzer hat den S09-Zwischenstand unter Windows 11 / Edge mit dem Competition Pro am
 27. November 2026 mit „hat funktioniert“ bestätigt. Damit ist S09 abgenommen.
+
+## Amöbe und Umwandlungswand ausprobieren
+
+Die Kampagne hält jeweils die ersten drei ungelösten Höhlen offen. Nach dem ersten gelösten Level
+erscheint **Die grüne Kammer** beim Durchwechseln mit „Nächste Höhle“, nach dem zweiten auch
+**Die drei Schächte**. Bereits gespeicherte Siege zählen mit. Bestätige den Wechsel, um die Höhle zu betreten.
+
+- **Die grüne Kammer.** Gehe vom Start vier Felder nach rechts und bleibe zwischen den beiden Mauersteinen
+  stehen. Die Amöbe wächst einmal pro Sekunde. Nach sechs Wachstumsschritten füllt sie die Kammer und
+  wird zu sieben Edelsteinen. Sammle drei und gehe durch den unteren Gang zum Ausgang. Lässt du den
+  Zugang offen, versteinert die Masse mit der achten Zelle. Spule zurück, um beide Verwandlungen auszuprobieren.
+- **Die drei Schächte.** Gehe im oberen Gang unter allen drei Steinen nach rechts. Beim ersten Treffer
+  leuchten die Wände für 3,5 Sekunden violett. Links fällt ein Edelstein heraus, in der Mitte ein Fels.
+  Am verschlossenen rechten Auslass blinkt ein rotes Kreuz. Nach Ablauf zeigt die Wand einen grauen Strich.
+  Steige ganz rechts hinab und sammle aus dem unteren Gang den Edelstein mit Aktion + oben.
+  Der Ausgang liegt unten links.
 
 ## Rückspulen
 

@@ -62,6 +62,20 @@ Die zusätzlichen Zellvarianten ändern keine bisher gültigen Zustände, daher 
 und Simulationszustandsversion 1. Ketten werden vollständig innerhalb eines Ticks abgewickelt;
 es gibt keine persistente, versteckte Explosionswarteschlange.
 
+S10 nutzt für das Wachstum die `amoeba`-Zellen, `tick`, `rngState` und die Levelparameter.
+Nur in Höhlen mit `M` ist `wallActivatedAt` Pflicht. Es enthält `null` bis zum ersten
+fallenden Treffer, danach dessen Tick. Jedes Wandfeld behält Position und ID und enthält
+`blockedAt` (anfangs `null`). Ein gespeicherter Blockadetreffer muss im aktiven Zeitfenster
+liegen und darf dem gespeicherten Tick höchstens entsprechen. Abgelaufene Wände behalten diese
+Werte für die eindeutige Wiederherstellung. Der Validator prüft auch Anfangsbestand und
+Größengrenze der Amöbe an den Tickgrenzen.
+
+Speicherformat, `stateVersion` und Regelversion bleiben auf 1. Die neuen Felder gehören
+ausschließlich zu bisher abgewiesenen Karten mit `M`. Alle zuvor gültigen Level behalten
+ihre Zustandsform. Ein fehlender Timer in einer Wandhöhle oder ein zusätzlicher Timer in einer
+wandlosen Höhle löst den regulären Ladefehler mit Schreibsperre aus. Für das Replay genügen
+weiterhin Anfangsidentität, Seed, Eingaben und Rückspulkennzeichnung.
+
 Die gesamte Partie wird zum Laden nicht nochmals tickweise durchsimuliert: Das könnte bei einer großen,
 langen Höhle die Oberfläche blockieren. Geprüft werden Struktur und Zustandsinvarianten.
 Die separate Replayprüfung bleibt der Weg zum vollständigen Nachspielen. LocalStorage-Daten und
