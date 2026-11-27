@@ -105,7 +105,8 @@ Verlauf zurück. Die Replaydatei enthält nur die resultierende Eingabefolge und
 Persistente Spielstände und getrennte Bestwerte folgen in S08.
 Der Verlauf hält höchstens elf vollständige Zustände und 109 Eingaben; Details und Speichermessung
 stehen in der [Architektur](docs/architecture.md#rückspulverlauf-s07).
-Der echte Rückspul-Spieltest unter Windows 11 / Edge mit dem Competition Pro steht noch aus.
+Der Nutzer hat das Rückspulen unter Windows 11 / Edge mit dem Competition Pro am
+27. November 2026 bestätigt und S07 freigegeben.
 
 ## Entwicklung und Prüfungen
 
