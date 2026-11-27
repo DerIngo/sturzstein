@@ -331,3 +331,21 @@ demselben Eingabeprofil. Die Hilfe zeigt außerdem die Beschreibung der aktuelle
 Oben/unten scrollt ihren Inhalt,
 sodass längere Texte auch per Gamepad erreichbar sind.
 Der HUD-Status nennt bei Sieg oder Niederlage das Ergebnis beziehungsweise die Todesursache.
+
+## Darstellung, Animation und Kamera (S13)
+
+`tools/sprites.cjs` erzeugt das vollständige horizontale PNG-Atlas aus eigenen 16×16-Pixel-Kacheln.
+Renderer und Titelgestaltung verwenden dasselbe Atlas; CSS skaliert das Titelzeichen auf ganzzahlige
+Pixelgrößen. Figur, Gegner, Edelsteine und Explosionen wählen ihre Pose zeit-/tickabhängig nur beim
+Zeichnen. Edelsteine erhalten kurze Lichtreflexe, und der offene Ausgang pulsiert; beides ist
+dezent und tickgebunden. Die Simulation kennt keine Animationsphase und wird dadurch nicht verändert.
+
+Die Figur zeigt nach einem Schritt kurz eine Geh- oder Grabpose und fällt danach in die Ruhepose.
+Rücksetzen des Renderers bei Start, Neustart und Wiederherstellung setzt Animation und Kamera zurück.
+Die Kamera folgt dem Spieler mit zeitbasierter, begrenzter Glättung und wird an Kartenrändern
+geclamped. Bewegte Rasterobjekte werden nur interpoliert, wenn ihr Pixelpfad keine Gefahren oder
+beweglichen Hindernisse schneidet; die aktuelle Simulation bleibt dabei maßgeblich. Der Ausgang
+wird zuletzt gezeichnet, damit sein Zustand sichtbar bleibt, auch wenn die Figur sein Feld erreicht.
+
+Darstellungstests prüfen Pixeldichte, große Karten, unveränderten Simulationszustand und die
+Spielerposen. Sie ersetzen keine lokale Sichtprüfung von Lesbarkeit, Effekten und Spielgefühl.

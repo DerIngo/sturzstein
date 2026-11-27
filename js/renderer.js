@@ -1,8 +1,9 @@
 (function (root) {
   "use strict";
-  const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "player",
+  const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "playerIdle", "playerWalk", "playerDig",
     "beetle", "butterfly", "beetleStep", "butterflyStep", "explosion3", "explosion2", "explosion1", "explosion0",
-    "amoeba", "amoebaPulse", "magicWall", "magicWallActive", "magicWallFlow", "magicWallSpent", "blockedOutlet"];
+    "amoeba", "amoebaPulse", "magicWall", "magicWallActive", "magicWallFlow", "magicWallSpent", "blockedOutlet",
+    "titleMark", "titleEye", "gemSpark", "openExitGlow"];
   const clamp = (n, min, max) => Math.max(min, Math.min(n, max));
   class Renderer {
     constructor(canvas, image) {
@@ -13,8 +14,23 @@
       this.camera = null;
       this.previous = null;
       this.positions = new Map();
+      this.target = null;
+      this.lastMoveTick = 0;
+      this.hasRendered = false;
+      this.animationTime = 0;
+      this.playerSprite = "playerIdle";
+      this.previousPlayerIndex = null;
     }
-    reset() { this.camera = null; this.previous = null; }
+    reset(state = null) {
+      this.camera = null;
+      this.previous = null;
+      this.target = null;
+      this.hasRendered = false;
+      this.animationTime = 0;
+      this.playerSprite = "playerIdle";
+      this.lastMoveTick = state?.tick ?? 0;
+      this.previousPlayerIndex = state?.playerIndex ?? null;
+    }
     draw(state, previous, alpha, delta = 16) {
       const canvas = this.canvas;
       const ratio = root.devicePixelRatio || 1;
@@ -40,7 +56,32 @@
       };
       if (!this.camera || this.scale !== scale) this.camera = { ...target };
       this.scale = scale;
-      const easing = 1 - Math.exp(-Math.min(delta, 100) / 100);
+      if (!this.target || this.target.x !== target.x || this.target.y !== target.y) {
+        this.target = { ...target };
+      }
+      const elapsed = this.hasRendered ? Math.min(100, Math.max(0, delta)) : 0;
+      this.hasRendered = true;
+      const playerAlive = state.board[state.playerIndex]?.type === "player";
+      if (state.tick < this.lastMoveTick || previous.tick > state.tick) {
+        this.lastMoveTick = state.tick;
+        this.playerSprite = "playerIdle";
+        this.animationTime = 0;
+        this.previousPlayerIndex = state.playerIndex;
+      } else if (state.tick > this.lastMoveTick) {
+        if (playerAlive && this.previousPlayerIndex !== null && this.previousPlayerIndex !== state.playerIndex) {
+          const walkedIntoEarth = previous.board[state.playerIndex]?.type === "earth"
+            && previous.board[this.previousPlayerIndex]?.type === "player";
+          this.playerSprite = walkedIntoEarth ? "playerDig" : "playerWalk";
+          this.animationTime = 0;
+        }
+        this.lastMoveTick = state.tick;
+        this.previousPlayerIndex = state.playerIndex;
+      }
+      if (this.playerSprite !== "playerIdle" && this.lastRenderTime !== null) {
+        this.animationTime += elapsed;
+        if (this.animationTime >= 140) this.playerSprite = "playerIdle";
+      }
+      const easing = 1 - Math.exp(-elapsed / 90);
       this.camera.x = clamp(this.camera.x + (target.x - this.camera.x) * easing, 0, Math.max(0, worldWidth - width));
       this.camera.y = clamp(this.camera.y + (target.y - this.camera.y) * easing, 0, Math.max(0, worldHeight - height));
       const ox = Math.round(Math.max(0, (width - worldWidth) / 2) - this.camera.x);
@@ -67,7 +108,7 @@
       const right = Math.min(state.width, Math.ceil((width - ox) / tile) + 1);
       const bottom = Math.min(state.height, Math.ceil((height - oy) / tile) + 1);
       for (let y = top; y < bottom; y++) for (let x = left; x < right; x++) sprite("empty", x, y);
-      sprite(state.collected >= state.quota ? "openExit" : "exit", state.exitIndex % state.width, Math.floor(state.exitIndex / state.width));
+
       for (let y = top; y < bottom; y++) for (let x = left; x < right; x++) {
         const cell = state.board[y * state.width + x];
         if (cell.type === "empty" || cell.type === "exit") continue;
@@ -75,13 +116,28 @@
         let px = x;
         let py = y;
         const enemy = root.Sturzstein.Simulation.isEnemy(cell);
-        if (old !== undefined && (["player", "rock", "gem"].includes(cell.type) || enemy)) {
-          px = old % state.width + (x - old % state.width) * alpha;
-          py = Math.floor(old / state.width) + (y - Math.floor(old / state.width)) * alpha;
+        const canInterpolate = old !== undefined && previous.tick < state.tick
+          && (["rock", "gem"].includes(cell.type) || enemy
+            || cell.type === "player" && previous.board[state.playerIndex]?.type !== "player");
+        if (canInterpolate) {
+          const oldX = old % state.width;
+          const oldY = Math.floor(old / state.width);
+          const start = { x: oldX, y: oldY };
+          const end = { x, y };
+          const safe = this.safePixel(state, oldX, oldY, x, y);
+          if (!safe) {
+            px = x;
+            py = y;
+          } else {
+            px = start.x + (end.x - start.x) * alpha;
+            py = start.y + (end.y - start.y) * alpha;
+          }
         }
         let type = cell.type;
         if (type === "explosion") type = `explosion${cell.remainingTicks}`;
         else if (enemy && state.tick % 2) type += "Step";
+        else if (type === "player") type = this.playerSprite;
+        else if (type === "gem" && Math.floor((state.tick + cell.id) / 2) % 3 === 0) type = "gemSpark";
         else if (type === "amoeba" && Math.floor((state.tick + cell.id) / 3) % 2) type = "amoebaPulse";
         else if (type === "magicWall") {
           const phase = root.Sturzstein.Simulation.magicWallPhase(state);
@@ -94,6 +150,21 @@
           if (age < 5 && age !== 2) sprite("blockedOutlet", px, py);
         }
       }
+      const exitType = state.collected >= state.quota
+        ? state.tick % 2 ? "openExitGlow" : "openExit" : "exit";
+      sprite(exitType,
+        state.exitIndex % state.width, Math.floor(state.exitIndex / state.width));
+    }
+    safePixel(state, fromX, fromY, toX, toY) {
+      if (fromX === toX && fromY === toY) return true;
+      const steps = Math.max(Math.abs(toX - fromX), Math.abs(toY - fromY)) * 4;
+      for (let step = 1; step < steps; step++) {
+        const x = Math.round(fromX + (toX - fromX) * step / steps);
+        const y = Math.round(fromY + (toY - fromY) * step / steps);
+        const cell = state.board[y * state.width + x];
+        if (cell.type !== "empty") return false;
+      }
+      return true;
     }
   }
   (root.Sturzstein ??= {}).Renderer = Renderer;

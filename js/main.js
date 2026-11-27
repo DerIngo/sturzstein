@@ -172,7 +172,7 @@
     started = true;
     get("feature-notice").textContent = "";
     previous = structuredClone(state);
-    renderer.reset();
+    renderer.reset(state);
     show("playing");
   }
   function newGame() {
@@ -217,7 +217,7 @@
             started = false;
             recorder = null;
             history = null;
-            renderer.reset();
+            renderer.reset(state);
             collectionReturn = "start";
           }
         }
@@ -502,7 +502,7 @@
           state = restored;
           recorder.truncate(state.tick);
           previous = structuredClone(state);
-          renderer.reset();
+          renderer.reset(state);
           updateHud();
           if (state.tick % 10 === 0) saveCurrent();
         }

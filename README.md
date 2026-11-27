@@ -13,6 +13,8 @@ Seit S07 lässt sich der vollständige Spielzustand mindestens zehn Sekunden zur
 Seit S08 bleiben Partie, Fortschritt, getrennte Bestwerte und die Einstellung für Bedienhinweise lokal gespeichert.
 Seit S09 sind Glutkäfer, Kristallfalter und verkettete 3×3-Explosionen integriert.
 Seit S10 wachsen Amöben seedgesteuert, und Umwandlungswände tauschen fallende Felsen und Edelsteine.
+S13 vervollständigt die Höhlengrafiken mit eigener Titelmarke, Spielerposen, funkelnden Edelsteinen,
+animierten Gegnern/Explosionen und pulsierendem Ausgang sowie einer weich folgenden Kamera.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
 Seit S11 lassen sich native JSON-Levelpacks importieren, auswählen, ersetzen und entfernen.

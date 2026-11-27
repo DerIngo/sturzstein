@@ -756,6 +756,61 @@ test("Canvas skaliert auf Pixeldichte und zeichnet große Höhlen ohne Zustands�
   expect(result.smoothing).toBe(false);
 });
 
+test("Spieleranimation wechselt zwischen Gehen, Graben und neutralem Zustand nach Reset", async ({ page }) => {
+  await page.goto(pathToFileURL(path.join(root, "index.html")).href);
+  const frames = await page.evaluate(async () => {
+    const level = structuredClone(window.Sturzstein.packs[0].levels[0]);
+    const pack = structuredClone(window.Sturzstein.packs[0]);
+    const state = window.Sturzstein.Simulation.createState(pack, level.id);
+    const image = new Image();
+    image.src = "assets/tiles.png";
+    await image.decode();
+    const canvas = document.getElementById("board");
+    const renderer = new window.Sturzstein.Renderer(canvas, image);
+    const sourceFrames = [];
+    const drawImage = renderer.ctx.drawImage.bind(renderer.ctx);
+    renderer.ctx.drawImage = (...args) => { sourceFrames.push(args[1]); drawImage(...args); };
+    const before = structuredClone(state);
+    renderer.reset(before);
+    const from = state.playerIndex;
+    const to = from + 1;
+    before.board[to] = { type: "empty", id: null };
+    const player = structuredClone(state.board[from]);
+    state.board[from] = { type: "empty", id: null };
+    state.board[to] = player;
+    state.playerIndex = to;
+    state.tick = 1;
+    renderer.draw(state, before, 1, 16);
+    const walk = sourceFrames.includes(9 * 16);
+    sourceFrames.length = 0;
+    renderer.reset(state);
+    const digging = structuredClone(state);
+    const diggingBefore = structuredClone(state);
+    const next = to + 1;
+    diggingBefore.board[next] = { type: "earth", id: null };
+    digging.board[to] = { type: "empty", id: null };
+    digging.board[next] = structuredClone(player);
+    digging.playerIndex = next;
+    digging.tick = 2;
+    renderer.draw(digging, diggingBefore, 1, 16);
+    const dig = sourceFrames.includes(10 * 16);
+    sourceFrames.length = 0;
+    renderer.reset(state);
+    renderer.draw(state, state, 1, 16);
+    const idle = sourceFrames.includes(8 * 16);
+    sourceFrames.length = 0;
+    const animated = structuredClone(state);
+    const gemIndex = animated.board.findIndex(cell => cell.type !== "player");
+    animated.board[gemIndex] = { type: "gem", id: 1001 };
+    animated.tick = 1;
+    animated.collected = animated.quota;
+    renderer.reset(animated);
+    renderer.draw(animated, animated, 1, 16);
+    return { walk, dig, idle, gem: sourceFrames.includes(28 * 16), openExit: sourceFrames.includes(29 * 16) };
+  });
+  expect(frames).toEqual({ walk: true, dig: true, idle: true, gem: true, openExit: true });
+});
+
 for (const protocol of ["file", "http"]) {
   test(`Zusatzpacks über ${protocol}: Import, Neuladen, Ersetzen und Entfernen`, async ({ page }) => {
     const custom = structuredClone(pack);

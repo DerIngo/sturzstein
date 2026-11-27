@@ -4,9 +4,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const zlib = require("node:zlib");
 const size = 16;
-const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "player",
+const terrain = ["empty", "earth", "steel", "wall"];
+const names = [...terrain, "rock", "gem", "exit", "openExit", "playerIdle", "playerWalk", "playerDig",
   "beetle", "butterfly", "beetleStep", "butterflyStep", "explosion3", "explosion2", "explosion1", "explosion0",
-  "amoeba", "amoebaPulse", "magicWall", "magicWallActive", "magicWallFlow", "magicWallSpent", "blockedOutlet"];
+  "amoeba", "amoebaPulse", "magicWall", "magicWallActive", "magicWallFlow", "magicWallSpent", "blockedOutlet",
+  "titleMark", "titleEye", "gemSpark", "openExitGlow"];
 const width = size * names.length;
 const pixels = Buffer.alloc(width * size * 4);
 let offset = 0;
@@ -29,7 +31,7 @@ function floor() {
 }
 for (const [index, name] of names.entries()) {
   offset = index * size;
-  if (name === "empty") floor();
+  if (name === "empty" || name === "titleMark" || name === "titleEye") floor();
   if (name === "earth") {
     rect(0, 0, 16, 16, "765143");
     rect(0, 0, 16, 1, "8c6450");
@@ -75,7 +77,7 @@ for (const [index, name] of names.entries()) {
     rect(8, 4, 2, 2, "617982");
     rect(9, 6, 2, 3, "617982");
   }
-  if (name === "gem") {
+  if (name === "gem" || name === "gemSpark") {
     for (let y = 1; y < 15; y++) {
       const half = y < 7 ? Math.floor(y / 2) + 1 : Math.floor((15 - y) / 2) + 1;
       for (let x = 8 - half; x <= 8 + half; x++) {
@@ -84,6 +86,11 @@ for (const [index, name] of names.entries()) {
     }
     rect(6, 5, 5, 1, "f0fff2");
     rect(8, 3, 1, 9, "80f6d5");
+    if (name === "gemSpark") {
+      pixel(4, 4, "f0fff2");
+      pixel(12, 11, "d6fff0");
+      pixel(8, 1, "ffffff");
+    }
   }
   if (name === "exit" || name === "openExit") {
     floor();
@@ -100,18 +107,35 @@ for (const [index, name] of names.entries()) {
       rect(5, 14, 6, 2, "76e8c2");
     }
   }
-  if (name === "player") {
+  if (name === "openExitGlow") {
+    floor();
+    rect(2, 2, 12, 14, "c2fff0");
+    rect(3, 1, 10, 2, "fff4bd");
+    rect(4, 3, 8, 13, "72ecd0");
+    rect(5, 4, 6, 12, "265d64");
+    rect(6, 6, 4, 1, "f0fff2");
+    rect(7, 8, 2, 3, "173544");
+    rect(11, 13, 2, 1, "fff4bd");
+  }
+  if (name.startsWith("player")) {
+    const walking = name === "playerWalk";
+    const digging = name === "playerDig";
     rect(4, 12, 3, 3, "132d42");
     rect(10, 12, 3, 3, "132d42");
-    rect(4, 14, 3, 1, "bad3c5");
-    rect(10, 14, 3, 1, "bad3c5");
-    rect(4, 7, 9, 6, "e6a349");
+    rect(4, 14 + Number(walking), 3, 1, "bad3c5");
+    rect(10, 14 - Number(walking), 3, 1, "bad3c5");
+    rect(4, 7 - Number(walking), 9, 6, "e6a349");
     rect(5, 10, 7, 2, "b56c32");
     rect(2, 8, 2, 4, "6e8e91");
     rect(13, 8, 1, 3, "f5cf9b");
     rect(5, 4, 7, 5, "f5cf9b");
     rect(8, 5, 5, 3, "233a50");
     pixel(10, 5, "a0f4e3");
+    if (digging) {
+      rect(1, 8, 3, 2, "f6d39a");
+      pixel(1, 7, "c2fff0");
+      rect(0, 10, 2, 1, "f2c578");
+    }
     rect(4, 2, 9, 3, "e6a349");
     rect(5, 1, 6, 2, "f5d686");
     rect(3, 4, 11, 1, "8c603c");
@@ -202,6 +226,26 @@ for (const [index, name] of names.entries()) {
       rect(9 - i, 5 + i, 2, 1, "ffb092");
     }
     rect(2, 13, 12, 2, "ff765c");
+  }
+  if (name === "titleMark") {
+    rect(3, 1, 10, 1, "f2c578");
+    rect(1, 2, 14, 2, "f2c578");
+    rect(0, 5, 16, 7, "e6a349");
+    rect(2, 12, 12, 2, "c2763f");
+    rect(4, 14, 8, 1, "8e4e36");
+    rect(4, 0, 2, 2, "c2fff0");
+    rect(10, 0, 2, 2, "c2fff0");
+    pixel(5, 2, "132635");
+    pixel(11, 2, "132635");
+  }
+  if (name === "titleEye") {
+    rect(2, 2, 12, 12, "62c6ae");
+    rect(4, 3, 8, 10, "d2f1bc");
+    rect(6, 5, 4, 6, "3d6875");
+    rect(7, 5, 2, 4, "102739");
+    rect(3, 4, 2, 6, "9ae8c9");
+    rect(11, 4, 2, 6, "9ae8c9");
+    pixel(8, 6, "f5d686");
   }
 }
 function crc32(data) {
