@@ -63,5 +63,14 @@ Darstellung, Eingabe, Audio, Levelverwaltung und Speicherung von der Simulation 
 
 Passende automatisierte Tests und erforderliche manuelle Prüfungen je Änderung ausführen.
 Fehler und nicht ausgeführte Browser-/Hardwaretests ausdrücklich nennen; keine erfundenen Erfolge.
-Aktuell existiert noch keine Implementierung und kein Build-/Testaufruf. Sobald in S02 eingerichtet,
-die tatsächlich verifizierten Befehle hier ergänzen. Keine Befehle als vorhanden voraussetzen.
+Verifizierte Entwicklungsbefehle (Node.js 24 LTS):
+
+- `npm test`: DOM-unabhängige automatisierte Tests.
+- `npm run check`: JavaScript-Syntax und Abgleich des Levelbundles mit den JSON-Quellen.
+- `npm run bundle`: Levelbundle nach Änderungen an `levels/*.json` neu erzeugen.
+- `npm run test:browser`: Playwright-Prüfungen in Chromium und Firefox, jeweils `file://` und HTTP.
+  Zur Einrichtung ausschließlich der Entwicklungswerkzeuge: `npm ci` und
+  `npx playwright install chromium firefox`.
+
+Kein dieser Entwicklungsbefehle ist zum Spielen erforderlich.
+Automatisierte Browserprüfungen nicht mit menschlicher Sicht-/Spielprüfung oder echtem Controller-Test gleichsetzen.

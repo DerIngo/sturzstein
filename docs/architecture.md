@@ -2,9 +2,10 @@
 
 ## Stand und Verbindlichkeit
 
-Dies ist der in S01 festgelegte Entwurf, noch keine Behauptung über implementierte Funktionen.
+Dies ist der in S01 festgelegte Entwurf. Implementiert sind seit S02 Levelvalidator, native Beispieldaten,
+Datenbundle-Werkzeug, Browser-Startgerüst und Testwerkzeuge. Die übrigen Module sind noch geplant.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
-S02 richtet Projekt und Prüfwerkzeuge ein.
+Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
 
 ## Vorgegebene Architektur
