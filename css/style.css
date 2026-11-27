@@ -21,7 +21,7 @@ canvas { display: block; width: 100%; height: clamp(240px, 58vh, 576px); image-r
 canvas:focus-visible { outline: 2px solid #7ad8bf; outline-offset: -3px; }
 .overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: #0b1425b8; }
 [hidden] { display: none !important; }
-.panel { width: min(460px, 100%); background: #192b38f5; border: 2px solid #7b8b89; box-shadow: 7px 7px #07111b; padding: 24px; text-align: center; }
+.panel { width: min(460px, 100%); max-height: 100%; overflow: auto; background: #192b38f5; border: 2px solid #7b8b89; box-shadow: 7px 7px #07111b; padding: 24px; text-align: center; }
 .panel h2 { margin: 0 0 14px; color: #f1cf8b; }
 .panel p { color: #c0d0cc; font-size: 14px; line-height: 1.65; }
 .buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; }

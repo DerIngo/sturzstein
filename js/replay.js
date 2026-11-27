@@ -78,6 +78,21 @@
       this.ticks = 0;
       this.maxTicks = state.remainingTicks;
     }
+    static fromReplay(pack, value) {
+      const replay = validateReplay(value);
+      if (pack.id !== replay.packId) throw new Error(`Replay: Pack-ID ${replay.packId} passt nicht zu ${pack.id}.`);
+      const recorder = new Recorder(pack, replay.levelId);
+      for (const key of ["levelRevision", "ruleVersion", "seed"]) {
+        if (replay[key] !== recorder.replay[key]) {
+          throw new Error(`Replay: ${key} ist inkompatibel (erwartet ${recorder.replay[key]}, erhalten ${replay[key]}).`);
+        }
+      }
+      const ticks = replay.inputs.reduce((sum, input) => sum + input.ticks, 0);
+      if (ticks > recorder.maxTicks) throw new Error("Replay: Eingaben überschreiten das Levelzeitlimit.");
+      recorder.replay = replay;
+      recorder.ticks = ticks;
+      return recorder;
+    }
     record(input) {
       if (!input || !directions.includes(input.direction) || typeof input.grab !== "boolean") {
         throw new Error("Replay-Aufzeichnung: Ungültige Tick-Eingabe.");
@@ -111,16 +126,8 @@
   }
 
   function play(pack, value, { requireWin = true, onTick = () => {} } = {}) {
-    const replay = validateReplay(value);
-    if (pack.id !== replay.packId) throw new Error(`Replay: Pack-ID ${replay.packId} passt nicht zu ${pack.id}.`);
+    const { replay } = Recorder.fromReplay(pack, value);
     const state = Simulation.createState(pack, replay.levelId);
-    for (const [key, expected] of [
-      ["levelRevision", state.levelRevision], ["ruleVersion", state.ruleVersion], ["seed", state.rngState],
-    ]) {
-      if (replay[key] !== expected) throw new Error(`Replay: ${key} ist inkompatibel (erwartet ${expected}, erhalten ${replay[key]}).`);
-    }
-    const ticks = replay.inputs.reduce((sum, input) => sum + input.ticks, 0);
-    if (ticks > state.remainingTicks) throw new Error("Replay: Eingaben überschreiten das Levelzeitlimit.");
     for (const input of replay.inputs) {
       for (let tick = 0; tick < input.ticks; tick++) {
         if (state.status !== "playing") throw new Error(`Replay: Überzählige Eingaben nach ${state.status} bei Tick ${state.tick}.`);

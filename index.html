@@ -11,7 +11,7 @@
   <main>
     <header>
       <div><p class="eyebrow">Ein Funkeln in der Tiefe</p><h1>STURZSTEIN</h1></div>
-      <span class="tag">ERSTE HÖHLE · S07</span>
+      <span class="tag">ERSTE HÖHLE · S08</span>
     </header>
     <section class="hud" aria-label="Spielstand">
       <span class="level" id="level-name"></span>
@@ -30,6 +30,8 @@
             <button type="button" class="primary" id="primary" disabled>Starten</button>
             <button type="button" id="secondary" hidden>Zurück</button>
             <button type="button" id="replay-export" hidden>Replay herunterladen</button>
+            <button type="button" id="toggle-hints" hidden>Bedienhinweise: an</button>
+            <button type="button" id="storage-reset" hidden>Speicherdaten ersetzen …</button>
           </div>
         </section>
       </div>
@@ -48,8 +50,11 @@
       <p id="gamepad-status" role="status">Gamepad anschließen und eine Taste drücken.</p>
       <p id="feature-notice" role="status"></p>
       <p id="rewind-status">Ohne Rückspulen · Z/U oder Controller-Rückspultaste halten, auch nach einer Niederlage.</p>
-      <p class="scope">Spielbarer Zwischenstand: eine eigene Höhle. Speicherung,
-        Gegner und weitere Level folgen in den nächsten Issues.</p>
+      <p id="storage-status" role="status">Lokaler Speicher wird geprüft …</p>
+      <p id="progress-status"></p>
+      <p id="best-status"></p>
+      <p class="scope">Spielbarer Zwischenstand: eine eigene Höhle. Gegner, Levelverwaltung
+        und weitere Level folgen in den nächsten Issues.</p>
     </footer>
   </main>
   <script src="js/levels.js"></script>
@@ -57,6 +62,7 @@
   <script src="js/simulation.js"></script>
   <script src="js/replay.js"></script>
   <script src="js/rewind.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/clock.js"></script>
   <script src="js/gamepad.js"></script>
   <script src="js/input.js"></script>

@@ -6,6 +6,8 @@
   const primary = get("primary");
   const secondary = get("secondary");
   const replayExport = get("replay-export");
+  const toggleHints = get("toggle-hints");
+  const storageReset = get("storage-reset");
   const status = get("status");
   const app = globalThis.Sturzstein;
   let state;
@@ -21,9 +23,30 @@
   let focused = true;
   let recorder;
   let history;
+  let saveStore;
+  let started = false;
+  let confirmation = "restart";
 
   function menuButtons() {
-    return [primary, secondary, replayExport].filter((button) => !button.hidden && !button.disabled);
+    return [primary, secondary, replayExport, toggleHints, storageReset].filter((button) => !button.hidden && !button.disabled);
+  }
+  function updateProfile() {
+    if (!saveStore) return;
+    get("input-hints").hidden = !saveStore.data.settings.showHints;
+    toggleHints.textContent = `Bedienhinweise: ${saveStore.data.settings.showHints ? "an" : "aus"}`;
+    storageReset.hidden = !saveStore.blocked || !["start", "resume", "paused", "lost", "won"].includes(screen);
+    const progress = saveStore.data.progress.filter((entry) => entry.packId === pack.id && pack.levels.some((level) => level.id === entry.levelId));
+    get("progress-status").textContent = `Fortschritt: ${progress.filter((entry) => entry.solved).length} / ${pack.levels.length} gelöst · ${progress.filter((entry) => entry.unlocked).length} freigeschaltet.`;
+    const best = (rewind) => {
+      const entry = app.Storage.bestFor(saveStore.data, pack, level, rewind);
+      return entry ? `${entry.score} Punkte (${(entry.ticks * app.Simulation.TICK_MS / 1000).toFixed(1).replace(".", ",")} s)` : "noch keiner";
+    };
+    get("best-status").textContent = `Bestwert ohne Rückspulen: ${best(false)} · mit Rückspulen: ${best(true)}`;
+  }
+  function saveCurrent() {
+    if (!started || !saveStore || !recorder) return;
+    saveStore.capture(pack, state, recorder);
+    updateProfile();
   }
 
   function show(next, message = "") {
@@ -33,17 +56,27 @@
     overlay.hidden = ["playing", "rewinding"].includes(next);
     get("pause").disabled = !["playing", "rewinding", "paused"].includes(next);
     get("pause").textContent = next === "paused" ? "Fortsetzen" : "Pause";
-    get("restart").disabled = ["loading", "start", "error", "confirm", "rewinding"].includes(next);
+    get("restart").disabled = ["loading", "start", "resume", "error", "confirm", "rewinding"].includes(next);
     primary.disabled = next === "error" || next === "loading";
-    secondary.hidden = next !== "confirm";
+    secondary.hidden = next !== "confirm" && next !== "resume";
+    secondary.textContent = next === "resume" ? "Neu beginnen …" : "Zurück";
+    toggleHints.hidden = !["start", "resume", "paused", "lost", "won"].includes(next);
     replayExport.hidden = !["paused", "won", "lost"].includes(next);
     replayExport.disabled = !recorder?.ticks;
     const dialogs = {
       start: ["Ein Funkeln im Dunkeln", level?.description || "", "Höhle betreten"],
+      resume: ["Partie fortsetzen?", state?.status === "lost"
+        ? "Der gespeicherte Versuch war bereits beendet. Ohne gespeicherten Rückspulverlauf kannst du ihn nur neu starten oder als Replay exportieren."
+        : "Dein letzter Zustand ist geladen. Zeit vergeht erst nach deiner Bestätigung. Der Rückspulverlauf beginnt hier neu.",
+        state?.status === "lost" ? "Letzten Versuch anzeigen" : "Gespeicherte Partie fortsetzen"],
       paused: ["Pause", message || "Die Höhle wartet. Zeit und Physik sind angehalten.", "Fortsetzen"],
-      confirm: ["Neu beginnen?", "Die aktuelle Partie wird verworfen. Dieselbe Höhle startet mit voller Zeit neu.", "Neu starten"],
+      confirm: confirmation === "storage"
+        ? ["Speicherdaten ersetzen?", "Vorhandene Browserdaten werden durch die Daten dieser Sitzung ersetzt. Beschädigte oder inkompatible Partien gehen verloren. Nicht lesbare Bestwerte und Einstellungen können nicht übernommen werden.", "Daten ersetzen"]
+        : ["Neu beginnen?", "Die aktuelle Partie wird verworfen. Dieselbe Höhle startet mit voller Zeit neu.", "Neu starten"],
       won: ["Ausgang erreicht!", `Du hast die Höhle geschafft. ${state?.score || 0} Punkte – gut gemacht!`, "Noch einmal"],
-      lost: ["Verschüttet?", `${state?.reason || "Diese Runde ist vorbei."} Z/U oder die Controller-Rückspultaste halten, um zurückzugehen.`, "Erneut versuchen"],
+      lost: ["Verschüttet?", `${state?.reason || "Diese Runde ist vorbei."} ${history?.availableTicks
+        ? "Z/U oder die Controller-Rückspultaste halten, um zurückzugehen."
+        : "Kein Rückspulverlauf verfügbar; starte die Höhle neu."}`, "Erneut versuchen"],
       error: ["Start nicht möglich", message, "Nicht verfügbar"],
     };
     if (dialogs[next]) {
@@ -61,6 +94,8 @@
       primary.focus();
     }
     if (state) updateHud();
+    updateProfile();
+    if (["playing", "paused", "lost", "won", "confirm"].includes(next)) saveCurrent();
   }
   function updateHud() {
     get("gems").textContent = `${state.collected} / ${state.quota}`;
@@ -79,12 +114,23 @@
     state = app.Simulation.createState(pack, level.id);
     recorder = new app.Replay.Recorder(pack, level.id);
     history = new app.Rewind.RewindHistory(state);
+    started = true;
     get("feature-notice").textContent = "";
     previous = structuredClone(state);
     renderer.reset();
     show("playing");
   }
   function confirm() {
+    if (screen === "resume") {
+      started = true;
+      show(state.status === "playing" ? "playing" : state.status);
+      return;
+    }
+    if (screen === "confirm" && confirmation === "storage") {
+      if (saveStore.reset()) saveCurrent();
+      show(beforeConfirm);
+      return;
+    }
     if (screen === "start" || screen === "won" || screen === "lost" || screen === "confirm") restart();
     else if (screen === "paused") show("playing");
   }
@@ -115,6 +161,7 @@
     }
     if (action === "restart" && ["playing", "paused"].includes(screen)) {
       beforeConfirm = screen;
+      confirmation = "restart";
       show("confirm");
     } else if (action === "restart" && ["won", "lost"].includes(screen)) {
       restart();
@@ -155,8 +202,25 @@
   window.addEventListener("blur", () => { focused = false; pauseForInterruption(); });
   window.addEventListener("focus", () => { focused = true; });
   document.addEventListener("visibilitychange", () => { if (document.hidden) pauseForInterruption(); });
+  window.addEventListener("pagehide", saveCurrent);
   primary.addEventListener("click", confirm);
-  secondary.addEventListener("click", () => show(beforeConfirm));
+  secondary.addEventListener("click", () => {
+    if (screen === "resume") {
+      beforeConfirm = screen;
+      confirmation = "restart";
+      show("confirm");
+    } else show(beforeConfirm);
+  });
+  toggleHints.addEventListener("click", () => {
+    saveStore.data.settings.showHints = !saveStore.data.settings.showHints;
+    saveStore.persist();
+    updateProfile();
+  });
+  storageReset.addEventListener("click", () => {
+    beforeConfirm = screen;
+    confirmation = "storage";
+    show("confirm");
+  });
   replayExport.addEventListener("click", () => {
     try {
       const text = app.Replay.stringifyReplay(recorder.replay);
@@ -191,6 +255,14 @@
     pack = app.Levels.validatePack(app.packs[0]);
     level = pack.levels[0];
     state = app.Simulation.createState(pack, level.id);
+    const packs = app.packs.map((entry) => app.Levels.validatePack(entry));
+    saveStore = new app.Storage.SaveStore(() => window.localStorage, packs,
+      (message) => { get("storage-status").textContent = message; });
+    if (saveStore.restored) {
+      ({ pack, state, recorder } = saveStore.restored);
+      level = pack.levels.find((entry) => entry.id === state.levelId);
+      history = new app.Rewind.RewindHistory(state);
+    }
     previous = structuredClone(state);
     const image = new Image();
     await new Promise((resolve, reject) => {
@@ -224,6 +296,7 @@
           previous = structuredClone(state);
           renderer.reset();
           updateHud();
+          if (state.tick % 10 === 0) saveCurrent();
         }
         return;
       }
@@ -234,9 +307,10 @@
       history.push(state, command);
       updateHud();
       if (state.status !== "playing") show(state.status);
+      else if (state.tick % 10 === 0) saveCurrent();
     }, pauseForInterruption);
-    get("level-name").textContent = `01 · ${level.name}`;
-    show("start");
+    get("level-name").textContent = `${String(pack.levels.findIndex((entry) => entry.id === level.id) + 1).padStart(2, "0")} · ${level.name}`;
+    show(saveStore.restored ? "resume" : "start");
     requestAnimationFrame(frame);
   }
   boot().catch(fail);

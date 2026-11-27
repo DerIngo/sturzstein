@@ -4,6 +4,8 @@ const http = require("node:http");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const Replay = require("../../js/replay.js");
+const Sim = require("../../js/simulation.js");
+const { KEY: storageKey } = require("../../js/storage.js");
 const pack = require("../../levels/einstieg.json");
 const solution = require("../../replays/sturzstein-einstieg/erste-schritte.json");
 const root = path.resolve(__dirname, "../..");
@@ -135,6 +137,8 @@ for (const protocol of ["file", "http"]) {
     }
     await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
     await expect(page.locator("#gems")).toHaveText("3 / 3");
+    await expect(page.locator("#progress-status")).toContainText("1 / 1 gelöst");
+    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).bests[0].usedRewind, storageKey)).toBe(false);
     expect(await page.evaluate(() => window.testState.status)).toBe("won");
     const wonReplay = await downloadReplay(page);
     expect(Replay.play(pack, wonReplay).state).toEqual(await page.evaluate(() => window.testState));
@@ -219,6 +223,7 @@ for (const protocol of ["file", "http"]) {
     await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
     const replay = await downloadReplay(page);
     expect(replay.usedRewind).toBe(true);
+    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).bests[0].usedRewind, storageKey)).toBe(true);
     expect(Replay.play(pack, replay).state).toEqual(await page.evaluate(() => window.testState));
     await page.locator("#primary").click();
     await expect(page.locator("#rewind-status")).toContainText("Ohne Rückspulen");
@@ -242,6 +247,74 @@ for (const protocol of ["file", "http"]) {
     await page.locator("#primary").click();
     await move("left", 1);
     expect(await page.evaluate(() => window.testState.status)).toBe("playing");
+  });
+
+  test(`Speicherung über ${protocol}: Neuladen und neuer Tab erhalten Zustand, Replay und Einstellungen ohne Offlinezeit`, async ({ page }) => {
+    const url = protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin;
+    await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
+    await page.goto(url);
+    await expect(page.locator("#primary")).toBeEnabled();
+    await observeSimulation(page);
+    await page.locator("#primary").click();
+    await page.keyboard.down("ArrowRight");
+    await advanceTicks(page, 2);
+    await page.keyboard.up("ArrowRight");
+    await advanceTicks(page, 10);
+    await page.keyboard.down("KeyZ");
+    await rewindTicks(page, 2);
+    await page.keyboard.up("KeyZ");
+    await page.clock.runFor(16);
+    await page.keyboard.press("KeyP");
+    await page.locator("#toggle-hints").click();
+    await expect(page.locator("#input-hints")).toBeHidden();
+    const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey);
+    expect(saved.session.state).toEqual(await page.evaluate(() => window.testState));
+    expect(saved.session.replay.usedRewind).toBe(true);
+    await page.clock.runFor(60000);
+    await page.reload();
+    await expect(page.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+    await expect(page.locator("#rewind-time")).toHaveText("0,0 s");
+    await expect(page.locator("#rewind-status")).toContainText("Mit Rückspulen");
+    await expect(page.locator("#input-hints")).toBeHidden();
+    await page.clock.runFor(2000);
+    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).session, storageKey)).toEqual(saved.session);
+    await page.locator("#secondary").click();
+    await expect(page.locator("#dialog-title")).toHaveText("Neu beginnen?");
+    await page.locator("#secondary").click();
+    await expect(page.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+    await page.close();
+
+    const reopened = await page.context().newPage();
+    await reopened.clock.install({ time: new Date("2030-01-03T00:00:00Z") });
+    await reopened.clock.pauseAt(new Date("2030-01-03T00:00:01Z"));
+    await reopened.goto(url);
+    await expect(reopened.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+    await observeSimulation(reopened);
+    await reopened.locator("#primary").click();
+    await reopened.clock.runFor(128);
+    const expected = structuredClone(saved.session.state);
+    Sim.step(expected, { direction: null, grab: false });
+    expect(await reopened.evaluate(() => window.testState)).toEqual(expected);
+    await reopened.keyboard.press("KeyP");
+    const continued = await downloadReplay(reopened);
+    expect(continued.usedRewind).toBe(true);
+    expect(Replay.play(pack, continued, { requireWin: false }).state).toEqual(expected);
+    await reopened.locator("#restart").click();
+    await reopened.locator("#primary").click();
+    for (const [key, count] of [["ArrowRight", 1], ["ArrowDown", 4], ["ArrowRight", 1], ["ArrowDown", 1]]) {
+      await reopened.keyboard.down(key);
+      await advanceTicks(reopened, count);
+      await reopened.keyboard.up(key);
+    }
+    await advanceTicks(reopened, 1);
+    const lost = await reopened.evaluate(() => window.testState);
+    await reopened.reload();
+    await expect(reopened.locator("#primary")).toHaveText("Letzten Versuch anzeigen");
+    await reopened.locator("#primary").click();
+    await expect(reopened.locator("#dialog-text")).toContainText("Kein Rückspulverlauf verfügbar");
+    expect(Replay.play(pack, await downloadReplay(reopened), { requireWin: false }).state).toEqual(lost);
+    await reopened.close();
   });
 
   for (const profile of ["standard", "competition-pro"]) test(`Simuliertes Gamepad ${profile} über ${protocol}: Spiel, Menüs und Hotplugging`, async ({ page }) => {
@@ -399,6 +472,52 @@ for (const protocol of ["file", "http"]) {
     await press([]);
     await press([0]);
     await expect(page.locator("#overlay")).toBeHidden();
+  });
+}
+
+for (const mode of ["blocked", "quota", "corrupt", "incompatible"]) {
+  test(`Speicherfehler ${mode}: sichtbare Meldung, spielbar und kein stiller Datenverlust`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const text = mode === "corrupt" ? "{" : JSON.stringify({
+      formatVersion: 1, settings: { showHints: true }, progress: [], bests: [],
+      session: { state: Sim.createState(pack, solution.levelId),
+        replay: { ...new Replay.Recorder(pack, solution.levelId).replay, levelRevision: 2 } },
+    });
+    await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
+    await page.addInitScript(({ mode, text, key }) => {
+      if (mode === "blocked") Object.defineProperty(window, "localStorage", {
+        get() { throw new DOMException("Test", "SecurityError"); },
+      });
+      else if (mode === "quota") Storage.prototype.setItem = () => { throw new DOMException("Test", "QuotaExceededError"); };
+      else if (localStorage.getItem(key) === null) localStorage.setItem(key, text);
+    }, { mode, text, key: storageKey });
+    await page.goto(origin);
+    await expect(page.locator("#primary")).toBeEnabled();
+    await observeSimulation(page);
+    await page.locator("#primary").click();
+    await advanceTicks(page, 2);
+    await expect(page.locator("#storage-status")).toContainText(
+      mode === "blocked" ? "SecurityError" : mode === "quota" ? "QuotaExceededError" : "unverändert",
+    );
+    await page.keyboard.press("KeyP");
+    if (mode === "corrupt" || mode === "incompatible") {
+      await page.locator("#toggle-hints").click();
+      expect(await page.evaluate((key) => localStorage.getItem(key), storageKey)).toBe(text);
+      await page.locator("#storage-reset").click();
+      await page.locator("#secondary").click();
+      expect(await page.evaluate((key) => localStorage.getItem(key), storageKey)).toBe(text);
+      await page.locator("#storage-reset").click();
+      await page.locator("#primary").click();
+      await expect(page.locator("#storage-status")).toContainText("Lokal gespeichert");
+      const state = await page.evaluate(() => window.testState);
+      expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).session.state, storageKey)).toEqual(state);
+      await page.reload();
+      await expect(page.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+      await expect(page.locator("#input-hints")).toBeHidden();
+    }
+    expect(errors).toEqual([]);
   });
 }
 

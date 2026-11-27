@@ -10,9 +10,10 @@ Fall-/Abrollphysik, Zeitlimit, Sieg/Niederlage, Pause und Neustart.
 Seit S05 sind Standard-Gamepads und der Competition Pro (040b:6533) sowie geräteabhängige Bedienhinweise integriert.
 Seit S06 werden Partien als tickgenaue Replays aufgezeichnet und können heruntergeladen und geprüft werden.
 Seit S07 lässt sich der vollständige Spielzustand mindestens zehn Sekunden zurückspulen, auch nach einer Niederlage.
+Seit S08 bleiben Partie, Fortschritt, getrennte Bestwerte und die Einstellung für Bedienhinweise lokal gespeichert.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
-Speicherung (S08), Gegner/Sondermechaniken,
+Gegner/Sondermechaniken,
 Pack-Import und die vollständige Kampagne sind noch nicht implementiert.
 
 ## Start
@@ -45,7 +46,7 @@ Die schmale Mittelwand endet unten: Der Weg in die rechte Höhlenhälfte führt 
 
 Menüknöpfe sind auch per Maus und Tab bedienbar. Beim Fokus-/Tabverlust oder einer längeren
 Unterbrechung wird automatisch pausiert; erst bewusste Bestätigung setzt das Spiel fort.
-Es gibt keine begrenzten Leben. Beim Schließen der Seite geht diese Partie aktuell noch verloren.
+Es gibt keine begrenzten Leben. Eine lokal gespeicherte Partie lässt sich nach dem Öffnen bewusst fortsetzen.
 
 ## Gamepad und Eingabegeräte
 
@@ -102,11 +103,34 @@ Fokusverlust oder Controllertrennung pausiert auch während des Rückspulens.
 Nach dem ersten tatsächlich rückgängig gemachten Tick bleibt der Lauf als **„Mit Rückspulen“**
 gekennzeichnet – auch beim Rückspulen bis zum Anfang. Erst ein Neustart setzt Kennzeichnung und
 Verlauf zurück. Die Replaydatei enthält nur die resultierende Eingabefolge und bewahrt die Kennzeichnung.
-Persistente Spielstände und getrennte Bestwerte folgen in S08.
+Spielstände und getrennte Bestwerte bewahren diese Kennzeichnung auch nach dem Laden.
 Der Verlauf hält höchstens elf vollständige Zustände und 109 Eingaben; Details und Speichermessung
 stehen in der [Architektur](docs/architecture.md#rückspulverlauf-s07).
 Der Nutzer hat das Rückspulen unter Windows 11 / Edge mit dem Competition Pro am
 27. November 2026 bestätigt und S07 freigegeben.
+
+## Speichern und Fortsetzen
+
+Die Partie wird automatisch ungefähr jede aktive Spielsekunde sowie beim Pausieren, Verlassen
+der Seite und bei Spielende lokal gespeichert. Nach dem Öffnen erscheint bei vorhandenem Spielstand
+„Partie fortsetzen?“. Die Höhle läuft erst nach deiner Bestätigung weiter; Offlinezeit kostet keine Levelzeit.
+Ein Neustart statt Fortsetzen braucht eine Bestätigung.
+
+Der Rückspulverlauf beginnt nach dem Laden neu, die Kennzeichnung „Mit Rückspulen“ bleibt jedoch erhalten.
+Ein gespeicherter verlorener Versuch kann angezeigt/exportiert werden; ohne alten Verlauf muss er neu beginnen.
+Fortschritt und Bestwerte mit/ohne Rückspulen werden getrennt angezeigt.
+Über „Bedienhinweise: an/aus“ im Menü lässt sich eine erste Einstellung dauerhaft ändern.
+Tonsteuerung und vollständige Level-/Einstellungsmenüs folgen weiterhin in S14 bzw. S12.
+
+Die Speicherung gilt nur für den jeweiligen Browser und Speicherbereich – keine Synchronisation
+zwischen GitHub Pages, lokalem Server und `file://`. Browserdaten löschen entfernt auch die Spieldaten.
+Ein harter Absturz kann die letzten noch nicht gespeicherten Ticks verlieren.
+
+Bei Speicherproblemen bleibt das Spiel nutzbar und zeigt eine Warnung. Beschädigte/inkompatible Daten
+werden nicht still überschrieben. „Speicherdaten ersetzen …“ verlangt eine ausdrückliche Bestätigung;
+Abbrechen bewahrt die vorhandenen Daten. Bei vollem/verweigertem Speicher bleibt der aktuelle Lauf
+gegebenenfalls nur temporär. Einzelheiten: [Speicherformat und Fehlerbehandlung](docs/storage-format.md).
+Die lokale Speicherabnahme unter Windows 11 / Edge steht für S08 noch aus.
 
 ## Entwicklung und Prüfungen
 
@@ -190,6 +214,7 @@ Historische Referenzen und deren Lizenzgrenzen stehen im Rechercheabschnitt von 
 | `js/simulation.js` | DOM-unabhängige deterministische Regeln |
 | `js/replay.js`, `replays/` | Tick-Aufzeichnung, Replayformat/-prüfung und mitgelieferte Lösungen |
 | `js/rewind.js` | Begrenzter Zustandsverlauf und tickgenaue Wiederherstellung |
+| `js/storage.js` | Validierter LocalStorage, Fortsetzen, Fortschritt, Bestwerte und Einstellungen |
 | `js/clock.js` | Tick-Akkumulator |
 | `js/input.js`, `js/gamepad.js` | Einheitliche Aktionen, Tastatur-/Gamepadzustand und Gerätewechsel |
 | `js/renderer.js`, `assets/` | Pixelgenaue Canvas-Darstellung und eigene PNG-Sprites |

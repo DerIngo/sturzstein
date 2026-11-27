@@ -10,6 +10,7 @@ Browser-Spielablauf implementiert. Die späteren Mechaniken und Komfortmodule bl
 S05 ergänzt Standard-Gamepads, ein Competition-Pro-Profil, Gerätewechsel und einheitliche Menü-/Spielaktionen.
 S06 ergänzt tickgenaue Browseraufzeichnung, JSON-Export und eine DOM-unabhängige Replay-Lösungsprüfung.
 S07 ergänzt begrenzten Rückspulverlauf, Wiederherstellung nach Niederlage und verzweigte Replays.
+S08 ergänzt versionierte lokale Speicherung mit bewusster Wiederaufnahme, Fortschritt und getrennten Bestwerten.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
 Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
@@ -44,12 +45,13 @@ Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-Syst
 Klassische Skripte registrieren ihre APIs unter `globalThis.Sturzstein`. Reine Module exportieren
 zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine transpilierten Quellen.
 
-| Datei/Bereich (S02–S07) | Vertrag |
+| Datei/Bereich (S02–S08) | Vertrag |
 |---|---|
 | `js/levels.js` | `parsePack(text, source)`, `validatePack(value, source)` liefern ein normalisiertes Pack oder werfen einen beschreibenden Fehler |
 | `js/simulation.js` | `createState(pack, levelId)` erzeugt einen neuen Zustand; `step(state, {direction, grab})` verändert ihn um genau einen Tick |
-| `js/replay.js` | Versionierte Replayvalidierung, `Recorder.record(input)`, `truncate(tick)` und `play(pack, replay)` über dieselbe Simulation |
+| `js/replay.js` | Versionierte Replayvalidierung, `Recorder.record(input)`, `truncate(tick)`, `Recorder.fromReplay(pack, replay)` und `play(pack, replay)` |
 | `js/rewind.js` | `RewindHistory.push(state, input)` speichert Tickgrenzen; `back()` stellt den vorherigen Gesamtzustand wieder her |
+| `js/storage.js` | `SaveStore` kapselt LocalStorage-Zugriff, Profilvalidierung, vollständiges Fortsetzen und Fehlerbehandlung |
 | `js/clock.js` | Fester 100-ms-Akkumulator; rendert beliebig oft, pausiert bei Unterbrechungen statt große Sprünge nachzuholen |
 | `js/input.js` | `InputManager.update(now)` für Menüaktionen; `sample()` liefert Tick-Eingaben, `rewinding()` liest die Halteaktion ohne Eingabepuffer zu verbrauchen |
 | `js/gamepad.js` | Standard-Mapping, Deadzone, Tastenkanten, Polling, Hotplugging und sichtbare API-Fehler |
@@ -58,8 +60,8 @@ zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine trans
 | `levels/*.json`, `js/level-bundle.js` | Maßgebliche Textdaten und generiertes, mitgeliefertes Bundle |
 | `tools/`, `tests/` | Bundle-/Asset-Erzeugung und automatisierte Prüfungen |
 
-Später kommen Speicher- und Audiomodule mit eigenen Verantwortlichkeiten hinzu.
-Sie werden nicht durch leere Platzhalter vorweggenommen. Spielerische Pause gehört zur Anwendung,
+Später kommen Audio und dauerhafte Packverwaltung hinzu, ohne leere Platzhalter vorwegzunehmen.
+Spielerische Pause gehört zur Anwendung,
 nicht als Echtzeitquelle in die Simulation. Render-/Soundereignisse sind aus Zustandsänderungen ableitbar.
 
 ## Vollständiger Simulationszustand
@@ -79,7 +81,7 @@ Felsen/Edelsteine tragen `falling`. Die Daten enthalten keine DOM-Referenzen, Fu
 Kurzlebige Verarbeitungssätze innerhalb eines Ticks werden nicht gespeichert; Snapshots entstehen nur an Tickgrenzen.
 Seit S07 hält die Anwendung außerhalb der Simulationssnapshots zusätzlich `recorder.replay.usedRewind`:
 Dieses Kennzeichen bleibt nach dem ersten tatsächlich zurückgenommenen Tick gesetzt,
-auch wenn vor die Nutzung zurückgespult wird, und wird ab S08 mit der Partie gespeichert.
+auch wenn vor die Nutzung zurückgespult wird, und wird seit S08 mit der Partie gespeichert.
 
 Das Starten erzeugt den Zustand immer neu aus unveränderten Leveldaten. Replays speichern Tick-Eingaben
 und Versionsidentität, keine Browserereignisse oder Millisekunden. Rückspulen kombiniert begrenzte
@@ -186,8 +188,8 @@ Das Rückspulen entfernt sofort die verworfenen Eingaben und späteren Snapshots
 `Recorder.truncate(state.tick)` kürzt auch einen teilweise verworfenen Eingabeblock und setzt
 `usedRewind` dauerhaft außerhalb der Snapshots. Die resultierende Eingabefolge bleibt von Levelbeginn
 an reproduzierbar. Format 2 transportiert die Laufkennzeichnung; Format 1 wird weiterhin gelesen.
-Ein Neustart erzeugt Recorder und Verlauf neu. S08 muss Zustand, Replay und Laufkennzeichnung
-gemeinsam speichern, jedoch nicht den temporären Rückspulverlauf.
+Ein Neustart erzeugt Recorder und Verlauf neu. S08 speichert Zustand, Replay und Laufkennzeichnung
+gemeinsam, jedoch nicht den temporären Rückspulverlauf.
 
 `main.js` unterscheidet den UI-Zustand `rewinding` von `playing`: Der unveränderte 100-ms-Takt
 führt entweder einen Vorwärts- oder einen Rückwärtsschritt aus. Während Rückspulen und am leeren
@@ -218,3 +220,26 @@ Start/Ausgang und sonst Felsen. Das sind Prüfdaten, kein mitgeliefertes Kampagn
 Die Nutzdatenmessung zählt zwei Bytes je gespeichertem JSON-Zeichen, nicht den gesamten JavaScript-Heap.
 Zusätzlicher Verwaltungs-/Parser-/Simulationsspeicher und kurzlebige Rekonstruktionszustände kommen hinzu.
 Die Zeitmessung ist keine Browser-/Hardwareabnahme und keine Zusicherung von 60 FPS auf jeder Karte.
+
+## Lokale Speicherung (S08)
+
+`SaveStore` erhält den Speicherzugriff als Funktion; auch ein bereits beim Lesen von `localStorage`
+ausgelöster Browserfehler wird dadurch abgefangen und sichtbar gemeldet.
+Das versionierte Dokument verbindet Einstellungen, ID-basierten Fortschritt, revisions-/regelgebundene
+Bestwerte je Rückspulklasse und maximal eine Partie aus vollständigem Zustand plus Replay.
+Bekannte und aktuell unbekannte Fortschritts-/Bestwerteinträge bleiben erhalten.
+Die initial drei ungelösten Kampagnenfreigaben werden ergänzt, bestehende Freigaben nicht zurückgenommen.
+
+`restoreSession` validiert Identität, Struktur und Zustandsinvarianten gegen die passende Leveldefinition.
+`Recorder.fromReplay` stellt Eingabeverlauf, Tickzähler, Seedbindung und Laufkennzeichnung wieder her.
+Zum Schutz vor langen Ladeblockaden wird nicht die ganze Partie erneut simuliert; der Replayprüfer
+bleibt separat verfügbar. Der Rückspulverlauf startet mit dem geladenen Snapshot und ist anfangs leer.
+Die Anwendung zeigt zuerst einen Fortsetzen-Dialog und setzt den Zeitakkumulator erst bei Bestätigung zurück.
+
+Schreibvorgänge erfolgen etwa einmal pro Spielsekunde und zusätzlich an Bildschirm-/Lebenszyklusgrenzen.
+Ein Ladefehler sperrt Schreiben, bis der Nutzer das Ersetzen bestätigt. Quoten-/Zugriffsfehler beim
+Schreiben lassen das Spiel weiterlaufen, ohne erfolgreiche Speicherung vorzutäuschen.
+Ein Vergleich mit dem zuletzt gelesenen/geschriebenen Dokument erkennt zwischenzeitliche Änderungen
+vor dem nächsten Schreiben und schützt sie vor automatischem Überschreiben.
+Format, Grenzen, Validierung, Wiederherstellung und bewusstes Ersetzen:
+[storage-format.md](storage-format.md).
