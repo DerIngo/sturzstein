@@ -130,7 +130,8 @@ Bei Speicherproblemen bleibt das Spiel nutzbar und zeigt eine Warnung. Beschädi
 werden nicht still überschrieben. „Speicherdaten ersetzen …“ verlangt eine ausdrückliche Bestätigung;
 Abbrechen bewahrt die vorhandenen Daten. Bei vollem/verweigertem Speicher bleibt der aktuelle Lauf
 gegebenenfalls nur temporär. Einzelheiten: [Speicherformat und Fehlerbehandlung](docs/storage-format.md).
-Die lokale Speicherabnahme unter Windows 11 / Edge steht für S08 noch aus.
+Der Nutzer hat am 27. November 2026 das Fortsetzen unter Windows 11 / Edge und die
+korrigierte Gamepad-Menübedienung mit dem Competition Pro bestätigt. Damit ist S08 abgenommen.
 
 ## Entwicklung und Prüfungen
 
