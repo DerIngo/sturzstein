@@ -137,8 +137,10 @@ node tools/replay.cjs levels/einstieg.json /pfad/zum/heruntergeladenen.replay.js
 Der Prüfer meldet Sieg, benötigte Ticks und Restzeit; fehlerhafte, inkompatible oder erfolglose
 Replays führen zu einem Fehlerstatus. Die erste Höhle ist mit dem mitgelieferten Replay in
 38 Ticks mit 116,2 Sekunden Restzeit lösbar. Format und Grenzen: [Replayformat](docs/replay-format.md).
-Der neue Exportdialog ist in Chromium/Firefox automatisiert geprüft; die Nutzerabnahme unter Edge
-steht für S06 noch aus. Visuelle Replay-Wiedergabe im Spiel ist nicht Teil dieses Schritts.
+Der Exportdialog ist in Chromium/Firefox automatisiert geprüft und wurde am 27. November 2026
+vom Nutzer unter Windows 11 / Edge abgenommen. Der heruntergeladene Nutzerlauf wurde erfolgreich
+bis zum Sieg abgespielt: 91 Ticks, 110,9 Sekunden Restzeit und 140 Punkte.
+Visuelle Replay-Wiedergabe im Spiel ist nicht Teil dieses Schritts.
 
 ## Leveldaten und Architektur
 
