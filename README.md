@@ -8,9 +8,10 @@ Eigene Level, Grafiken und Regeln; keine Originalassets oder kopierten Originall
 Der spielbare Stand enthält eine eigene Höhle mit Graben, Sammeln, Schieben,
 Fall-/Abrollphysik, Zeitlimit, Sieg/Niederlage, Pause und Neustart.
 Seit S05 sind Standard-Gamepads und der Competition Pro (040b:6533) sowie geräteabhängige Bedienhinweise integriert.
+Seit S06 werden Partien als tickgenaue Replays aufgezeichnet und können heruntergeladen und geprüft werden.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
-Replays (S06), Rückspulen (S07), Speicherung (S08), Gegner/Sondermechaniken,
+Rückspulen (S07), Speicherung (S08), Gegner/Sondermechaniken,
 Pack-Import und die vollständige Kampagne sind noch nicht implementiert.
 
 ## Start
@@ -88,6 +89,7 @@ Node.js 24 LTS:
 ```sh
 npm test
 npm run check
+npm run replay
 npm run bundle
 node tools/sprites.cjs
 ```
@@ -112,13 +114,31 @@ keine menschliche Beurteilung von Spielgefühl, Grafik oder Controllerhardware.
 Die Prüfungen in Node und Playwright-Chromium/Firefox decken beide Startarten, einen Sieg durch
 Tastatureingaben und simulierte Controller, Tod, Neustart, Pause, Fokusereignisse, variable
 Fenstergrößen/Pixeldichten und große Höhlen ab. Die Lösung liegt als getaktete Eingabefolge im
-Browsertest; das separate Replay-Dateiformat folgt in S06.
+mitgelieferten Replay; Browserdownloads werden gegen denselben Simulationszustand geprüft.
 S04 wurde nach lokaler Screenshot-Sichtprüfung und Nutzer-Spielabnahme freigegeben.
 S05 wurde am 27. November 2026 vom Nutzer mit echtem Competition Pro (040b:6533)
 unter Windows 11 / Edge freigegeben: Erkennung und Spielbetrieb sowie Pause beim Abziehen
 und bewusstes Fortsetzen nach Wiederanschließen ohne Neuladen wurden bestätigt.
 Diese Hardwareabnahme gilt für die genannte Kombination; simulierte Gamepad-API-Tests
 ersetzen keine weiteren Hardwaretests. Edge wird nicht automatisiert geprüft.
+
+## Replay aufzeichnen und prüfen
+
+Jede Partie wird automatisch ab dem Start aufgezeichnet. Im Pause-, Sieg- oder Niederlagendialog
+„Replay herunterladen“ wählen. Pausen zählen nicht als Spielzeit; ein Neustart beginnt eine neue
+Aufzeichnung. Auch unvollständige/verlorene Verläufe sind exportierbar, aber keine Lösungsnachweise.
+
+`npm run replay` prüft alle mitgelieferten Lösungen ohne Browser. Einen eigenen Download prüfst du mit:
+
+```sh
+node tools/replay.cjs levels/einstieg.json /pfad/zum/heruntergeladenen.replay.json
+```
+
+Der Prüfer meldet Sieg, benötigte Ticks und Restzeit; fehlerhafte, inkompatible oder erfolglose
+Replays führen zu einem Fehlerstatus. Die erste Höhle ist mit dem mitgelieferten Replay in
+38 Ticks mit 116,2 Sekunden Restzeit lösbar. Format und Grenzen: [Replayformat](docs/replay-format.md).
+Der neue Exportdialog ist in Chromium/Firefox automatisiert geprüft; die Nutzerabnahme unter Edge
+steht für S06 noch aus. Visuelle Replay-Wiedergabe im Spiel ist nicht Teil dieses Schritts.
 
 ## Leveldaten und Architektur
 
@@ -140,6 +160,7 @@ Historische Referenzen und deren Lizenzgrenzen stehen im Rechercheabschnitt von 
 | `js/levels.js`, `levels/` | Gemeinsamer Validator und maßgebliche JSON-Level |
 | `js/level-bundle.js` | Generierte integrierte Leveldaten |
 | `js/simulation.js` | DOM-unabhängige deterministische Regeln |
+| `js/replay.js`, `replays/` | Tick-Aufzeichnung, Replayformat/-prüfung und mitgelieferte Lösungen |
 | `js/clock.js` | Tick-Akkumulator |
 | `js/input.js`, `js/gamepad.js` | Einheitliche Aktionen, Tastatur-/Gamepadzustand und Gerätewechsel |
 | `js/renderer.js`, `assets/` | Pixelgenaue Canvas-Darstellung und eigene PNG-Sprites |

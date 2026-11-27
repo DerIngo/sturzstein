@@ -3,9 +3,20 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const Replay = require("../../js/replay.js");
+const pack = require("../../levels/einstieg.json");
+const solution = require("../../replays/sturzstein-einstieg/erste-schritte.json");
 const root = path.resolve(__dirname, "../..");
 let server;
 let origin;
+
+async function downloadReplay(page, activate = () => page.locator("#replay-export").click()) {
+  const pending = page.waitForEvent("download");
+  await activate();
+  const download = await pending;
+  expect(download.suggestedFilename()).toBe("sturzstein-einstieg--erste-schritte.replay.json");
+  return Replay.parseReplay(await fs.promises.readFile(await download.path(), "utf8"));
+}
 
 async function observeSimulation(page) {
   await page.evaluate(() => {
@@ -89,15 +100,15 @@ for (const protocol of ["file", "http"]) {
       if (key) await page.keyboard.up(key);
     }
 
-    for (const [key, count] of [
-      ["ArrowRight", 3], ["ArrowDown", 1], ["ArrowRight", 2], ["ArrowDown", 5],
-      ["ArrowLeft", 3], ["ArrowDown", 1], ["ArrowRight", 3], ["ArrowUp", 1],
-      ["ArrowRight", 8], ["ArrowUp", 3], ["ArrowDown", 5], ["ArrowRight", 3],
-    ]) await ticks(key, count);
+    for (const { direction, ticks: count } of solution.inputs) {
+      await ticks({ right: "ArrowRight", down: "ArrowDown", left: "ArrowLeft", up: "ArrowUp" }[direction], count);
+    }
     await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
     await expect(page.locator("#gems")).toHaveText("3 / 3");
     expect(await page.evaluate(() => window.testState.status)).toBe("won");
-    await page.keyboard.press("Enter");
+    const wonReplay = await downloadReplay(page);
+    expect(Replay.play(pack, wonReplay).state).toEqual(await page.evaluate(() => window.testState));
+    await page.locator("#primary").click();
     expect(await page.evaluate(() => window.testState.tick)).toBe(0);
 
     await ticks("ArrowRight", 1);
@@ -115,7 +126,10 @@ for (const protocol of ["file", "http"]) {
     const paused = await page.evaluate(() => window.testState);
     await page.clock.runFor(5000);
     expect(await page.evaluate(() => window.testState)).toEqual(paused);
-    await page.keyboard.press("Enter");
+    const pausedReplay = await downloadReplay(page);
+    expect(Replay.play(pack, pausedReplay, { requireWin: false }).state).toEqual(paused);
+    expect(pausedReplay.inputs.reduce((sum, input) => sum + input.ticks, 0)).toBe(paused.tick);
+    await page.locator("#primary").click();
     await page.keyboard.press("KeyR");
     await expect(page.locator("#dialog-title")).toHaveText("Neu beginnen?");
     await page.keyboard.press("Escape");
@@ -214,6 +228,15 @@ for (const protocol of ["file", "http"]) {
       await advanceTicks(page, count);
     }
     await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
+    await press([]);
+    await press([13]);
+    await expect(page.locator("#replay-export")).toBeFocused();
+    await press([]);
+    const recorded = await downloadReplay(page, () => press([0]));
+    expect(Replay.play(pack, recorded).state).toEqual(await page.evaluate(() => window.testState));
+    await press([]);
+    await press([12]);
+    await expect(page.locator("#primary")).toBeFocused();
     await press([]);
     await press([0]);
     await press([]);

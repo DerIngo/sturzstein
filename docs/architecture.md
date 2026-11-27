@@ -8,6 +8,7 @@ Kernsimulation mit Grundelementen, Timer, Wertung und terminalen Zuständen impl
 Seit S04 sind Canvas-Darstellung, Tick-Akkumulator, Tastatureingabe und der vollständige kleine
 Browser-Spielablauf implementiert. Die späteren Mechaniken und Komfortmodule bleiben geplant.
 S05 ergänzt Standard-Gamepads, ein Competition-Pro-Profil, Gerätewechsel und einheitliche Menü-/Spielaktionen.
+S06 ergänzt tickgenaue Browseraufzeichnung, JSON-Export und eine DOM-unabhängige Replay-Lösungsprüfung.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
 Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
@@ -42,10 +43,11 @@ Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-Syst
 Klassische Skripte registrieren ihre APIs unter `globalThis.Sturzstein`. Reine Module exportieren
 zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine transpilierten Quellen.
 
-| Datei/Bereich (S02–S05) | Vertrag |
+| Datei/Bereich (S02–S06) | Vertrag |
 |---|---|
 | `js/levels.js` | `parsePack(text, source)`, `validatePack(value, source)` liefern ein normalisiertes Pack oder werfen einen beschreibenden Fehler |
 | `js/simulation.js` | `createState(pack, levelId)` erzeugt einen neuen Zustand; `step(state, {direction, grab})` verändert ihn um genau einen Tick |
+| `js/replay.js` | Versionierte Replayvalidierung, `Recorder.record(input)` und `play(pack, replay)` über dieselbe Simulation |
 | `js/clock.js` | Fester 100-ms-Akkumulator; rendert beliebig oft, pausiert bei Unterbrechungen statt große Sprünge nachzuholen |
 | `js/input.js` | `InputManager.update(now)` für geräteübergreifende Menüaktionen; `sample()` liefert Richtung, `grab` und vorbereitetes `rewind` pro Tick |
 | `js/gamepad.js` | Standard-Mapping, Deadzone, Tastenkanten, Polling, Hotplugging und sichtbare API-Fehler |
@@ -54,7 +56,7 @@ zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine trans
 | `levels/*.json`, `js/level-bundle.js` | Maßgebliche Textdaten und generiertes, mitgeliefertes Bundle |
 | `tools/`, `tests/` | Bundle-/Asset-Erzeugung und automatisierte Prüfungen |
 
-Später kommen Replay-, Rückspul-, Speicher- und Audiomodule mit eigenen Verantwortlichkeiten hinzu.
+Später kommen Rückspul-, Speicher- und Audiomodule mit eigenen Verantwortlichkeiten hinzu.
 Sie werden nicht durch leere Platzhalter vorweggenommen. Spielerische Pause gehört zur Anwendung,
 nicht als Echtzeitquelle in die Simulation. Render-/Soundereignisse sind aus Zustandsänderungen ableitbar.
 
@@ -139,3 +141,22 @@ Controlleraktionen nicht verarbeitet. Nach Rückkehr müssen zunächst alle Cont
 losgelassen werden; kein unbewusstes Fortsetzen durch eine außerhalb des Fensters gedrückte Taste.
 Fehlende API, verweigerter Zugriff und unbekanntes Mapping erhalten deutsche Hinweise.
 Browser-API-Tests verwenden simulierte Controller; der echte Hardwaretest bleibt gesonderte Abnahme.
+
+## Replayaufzeichnung und Prüfung (S06)
+
+`Replay.Recorder` bindet eine neue Partie an Pack-/Level-ID, Levelrevision, Regelversion und
+Anfangsseed. `record(input)` normalisiert die Simulationseingabe, komprimiert gleiche aufeinanderfolgende
+Ticks und liefert genau die Richtung/Grabeaktion zurück, die `main.js` an `Simulation.step` übergibt.
+Menü-/Pausenaktionen und Renderzeit gelangen nicht in den Verlauf. Ein Neustart ersetzt ihn.
+
+`parseReplay`, `validateReplay` und `stringifyReplay` liefern strikt validierte Daten bzw. JSON.
+`play` erzeugt einen frischen Zustand aus dem passenden Level, prüft Identität und Seed,
+führt jeden Tick aus und liefert Endzustand, Tickzahl und Restzeit. Optional kann `onTick(state)`
+für Prüfungen den vollständigen aktuellen Zustand lesen; der Callback darf ihn nicht verändern.
+Ein Sieg ist standardmäßig erforderlich; nur Zustandsanalysen können `requireWin: false` verwenden.
+Eingaben hinter einem terminalen Zustand bleiben auch dabei ein Fehler.
+
+Die Anwendung bietet Downloads in Pause, Sieg und Niederlage an; der Download verändert den
+Simulationszustand nicht. `tools/replay.cjs` prüft alle mitgelieferten Level oder ein angegebenes Dateipaar
+ohne Browser. Format, Ressourcengrenzen, Kompatibilität und Aufrufe stehen in
+[replay-format.md](replay-format.md).

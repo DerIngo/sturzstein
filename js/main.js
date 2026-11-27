@@ -5,6 +5,7 @@
   const overlay = get("overlay");
   const primary = get("primary");
   const secondary = get("secondary");
+  const replayExport = get("replay-export");
   const status = get("status");
   const app = globalThis.Sturzstein;
   let state;
@@ -18,6 +19,11 @@
   let beforeConfirm = "playing";
   let lastFrame = 0;
   let focused = true;
+  let recorder;
+
+  function menuButtons() {
+    return [primary, secondary, replayExport].filter((button) => !button.hidden && !button.disabled);
+  }
 
   function show(next, message = "") {
     screen = next;
@@ -28,6 +34,8 @@
     get("restart").disabled = ["loading", "start", "error", "confirm"].includes(next);
     primary.disabled = next === "error" || next === "loading";
     secondary.hidden = next !== "confirm";
+    replayExport.hidden = !["paused", "won", "lost"].includes(next);
+    replayExport.disabled = !recorder?.ticks;
     const dialogs = {
       start: ["Ein Funkeln im Dunkeln", level?.description || "", "Höhle betreten"],
       paused: ["Pause", message || "Die Höhle wartet. Zeit und Physik sind angehalten.", "Fortsetzen"],
@@ -62,6 +70,8 @@
   }
   function restart() {
     state = app.Simulation.createState(pack, level.id);
+    recorder = new app.Replay.Recorder(pack, level.id);
+    get("feature-notice").textContent = "";
     previous = structuredClone(state);
     renderer.reset();
     updateHud();
@@ -74,14 +84,14 @@
   function command(action, direction) {
     if (["loading", "error"].includes(screen)) return;
     if (action === "navigate" && !overlay.hidden) {
-      const buttons = [primary, secondary].filter((button) => !button.hidden && !button.disabled);
+      const buttons = menuButtons();
       const index = buttons.indexOf(document.activeElement);
       const step = direction === "up" || direction === "left" ? -1 : 1;
       buttons[(index + step + buttons.length) % buttons.length]?.focus();
       return;
     }
     if (action === "confirm") {
-      if (!overlay.hidden && document.activeElement === secondary) secondary.click();
+      if (!overlay.hidden && menuButtons().includes(document.activeElement)) document.activeElement.click();
       else confirm();
       return;
     }
@@ -132,13 +142,34 @@
   document.addEventListener("visibilitychange", () => { if (document.hidden) pauseForInterruption(); });
   primary.addEventListener("click", confirm);
   secondary.addEventListener("click", () => show(beforeConfirm));
+  replayExport.addEventListener("click", () => {
+    try {
+      const text = app.Replay.stringifyReplay(recorder.replay);
+      const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+      const link = document.createElement("a");
+      try {
+        link.href = url;
+        link.download = `${pack.id}--${level.id}.replay.json`;
+        document.body.append(link);
+        link.click();
+        get("feature-notice").textContent = "Replay-Download angefordert. Nur ein Verlauf bis zum Sieg gilt als Lösungsnachweis.";
+      } finally {
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (error) {
+      console.error("Replay-Export fehlgeschlagen:", error);
+      get("feature-notice").textContent = `Replay konnte nicht exportiert werden: ${error.message}`;
+    }
+  });
   get("pause").addEventListener("click", () => command("pause"));
   get("restart").addEventListener("click", () => command("restart"));
   overlay.addEventListener("keydown", (event) => {
     if (event.key !== "Tab" || primary.disabled) return;
     event.preventDefault();
-    if (!secondary.hidden && document.activeElement === primary) secondary.focus();
-    else primary.focus();
+    const buttons = menuButtons();
+    const index = buttons.indexOf(document.activeElement);
+    buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus();
   });
 
   async function boot() {
@@ -170,7 +201,7 @@
     clock = new app.FixedClock(() => {
       if (screen !== "playing") return;
       previous = structuredClone(state);
-      app.Simulation.step(state, input.sample());
+      app.Simulation.step(state, recorder.record(input.sample()));
       updateHud();
       if (state.status !== "playing") show(state.status);
     }, pauseForInterruption);
