@@ -204,6 +204,12 @@ Gamepad mit Standard-Mapping:
 - Y: Level-Neustart mit Bestätigung.
 - Start: Pause/Fortsetzen.
 
+Zusätzlich unterstütze den Competition Pro „USB 2A4K GamePad“ (Vendor 040b, Product 6533)
+ohne Standard-Mapping über ein gezieltes Geräteprofil: digitale Achsen 0/1 zum Bewegen,
+großer linker Knopf (B0) zum Graben/Bestätigen, großer rechter (B1) zum Rückspulen/Zurück,
+kleiner linker (B2) zum Neustart und kleiner rechter (B3) für Pause/Fortsetzen.
+Zeige dazu passende Bedienhinweise; rate keine Belegung für andere unbekannte Geräte.
+
 Gamepads werden nach der ersten erforderlichen Benutzereingabe automatisch erkannt.
 Unterstütze Hotplugging, sinnvolle Stick-Deadzone und eindeutige Vier-Richtungs-Eingaben.
 Beim Trennen eines aktiv verwendeten Controllers wird pausiert.

@@ -2,10 +2,23 @@
   "use strict";
   const neutral = () => ({ direction: null, grab: false, rewind: false, restart: false, pause: false });
   const active = (state) => state.direction || state.grab || state.rewind || state.restart || state.pause;
+  const standardProfile = { id: "standard", grab: 0, rewind: 1, restart: 3, pause: 9 };
+  const competitionProfile = { id: "competition-pro", grab: 0, rewind: 1, restart: 2, pause: 3 };
+
+  function profileFor(pad) {
+    if (pad.mapping === "standard") return standardProfile;
+    if (pad.mapping === "" && pad.axes.length >= 2 && pad.buttons.length >= 4
+      && /(?:^040b-6533-|\bVendor:\s*040b\s+Product:\s*6533\))/i.test(pad.id || "")) {
+      return competitionProfile;
+    }
+    return null;
+  }
 
   function decode(pad, previous = neutral()) {
+    const profile = profileFor(pad);
+    if (!profile) return neutral();
     const pressed = (index) => Boolean(pad.buttons[index]?.pressed || pad.buttons[index]?.value > 0.5);
-    const dpad = [12, 13, 14, 15].some(pressed);
+    const dpad = profile.id === "standard" && [12, 13, 14, 15].some(pressed);
     const x = dpad ? Number(pressed(15)) - Number(pressed(14)) : pad.axes[0] || 0;
     const y = dpad ? Number(pressed(13)) - Number(pressed(12)) : pad.axes[1] || 0;
     const threshold = previous.direction ? 0.25 : 0.35;
@@ -16,7 +29,8 @@
       else direction = [x < 0 ? "left" : "right", y < 0 ? "up" : "down"].includes(previous.direction)
         ? previous.direction : y < 0 ? "up" : "down";
     }
-    return { direction, grab: pressed(0), rewind: pressed(1), restart: pressed(3), pause: pressed(9) };
+    return { direction, grab: pressed(profile.grab), rewind: pressed(profile.rewind),
+      restart: pressed(profile.restart), pause: pressed(profile.pause) };
   }
 
   class GamepadInput {
@@ -26,6 +40,7 @@
       this.onDisconnect = onDisconnect;
       this.history = new Map();
       this.index = null;
+      this.profile = null;
       this.current = neutral();
       this.queued = null;
       this.releaseRequired = false;
@@ -45,6 +60,7 @@
       this.history.delete(index);
       if (index !== this.index) return;
       this.index = null;
+      this.profile = null;
       this.current = neutral();
       this.queued = null;
       this.releaseRequired = false;
@@ -66,11 +82,8 @@
         console.warn("Gamepad-Zugriff fehlgeschlagen:", error);
         return null;
       }
-      const standard = pads.filter((pad) => pad.mapping === "standard");
-      this.report(standard.length ? "Standard-Gamepad erkannt. A drücken oder eine Richtung bewegen."
-        : pads.length ? "Dieses Gamepad hat kein Standard-Mapping und wird nicht verwendet. Bitte Tastatur oder einen Standard-Controller nutzen."
-          : "Gamepad anschließen und eine Taste drücken, damit der Browser es erkennt.");
-      const snapshots = new Map(standard.map((pad) => [pad.index, decode(pad, this.history.get(pad.index))]));
+      const supported = pads.filter((pad) => profileFor(pad));
+      const snapshots = new Map(supported.map((pad) => [pad.index, decode(pad, this.history.get(pad.index))]));
       if (this.index !== null && !snapshots.has(this.index)) {
         this.disconnect(this.index);
         this.history = snapshots;
@@ -82,6 +95,14 @@
           || ["grab", "rewind", "restart", "pause"].some((key) => state[key] && !old[key]);
       });
       if (changes.length && !this.releaseRequired) this.index = changes[0][0];
+      const selected = supported.find((pad) => pad.index === this.index);
+      this.profile = selected ? profileFor(selected) : null;
+      const reportedProfile = this.profile || (supported[0] && profileFor(supported[0]));
+      this.report(reportedProfile?.id === "competition-pro"
+        ? "Competition Pro erkannt (040b:6533). Großen linken Knopf drücken oder Joystick bewegen."
+        : reportedProfile ? "Standard-Gamepad erkannt. A drücken oder eine Richtung bewegen."
+          : pads.length ? "Dieses Gamepad hat kein Standard-Mapping und kein unterstütztes Geräteprofil. Bitte Tastatur oder einen unterstützten Controller nutzen."
+            : "Gamepad anschließen und eine Taste drücken, damit der Browser es erkennt.");
       const old = this.history.get(this.index) || neutral();
       this.current = snapshots.get(this.index) || neutral();
       this.history = snapshots;

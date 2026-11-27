@@ -155,9 +155,11 @@
     renderer = new app.Renderer(canvas, image);
     input = new app.InputManager(window, navigator, {
       onCommand: command,
-      onDevice(device) {
+      onDevice(device, profile) {
         get("input-hints").textContent = device === "gamepad"
-          ? "Gamepad: Steuerkreuz / linker Stick bewegen · A + Richtung graben · Start Pause · Y Neustart · A bestätigen · B zurück"
+          ? profile === "competition-pro"
+            ? "Competition Pro: Joystick bewegen · Links groß + Richtung graben · Rechts klein Pause · Links klein Neustart · Links groß bestätigen · Rechts groß zurück / im Spiel Rückspulen (S07)"
+            : "Gamepad: Steuerkreuz / linker Stick bewegen · A + Richtung graben · Start Pause · Y Neustart · A bestätigen · B zurück"
           : `${device === "mouse" ? "Maus: Menüs anklicken. " : ""}Tastatur: Pfeile / WASD bewegen · Leertaste / Umschalt + Richtung graben · Esc / P Pause · R Neustart · Enter bestätigen`;
       },
       onStatus(message) { get("gamepad-status").textContent = message; },

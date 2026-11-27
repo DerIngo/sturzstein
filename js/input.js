@@ -49,6 +49,7 @@
     constructor(target, navigator, { onCommand, onDevice, onStatus, onDisconnect }) {
       const { GamepadInput } = root.Sturzstein?.Gamepad ?? require("./gamepad.js");
       this.device = "keyboard";
+      this.profile = null;
       this.context = "menu";
       this.onCommand = onCommand;
       this.onDevice = onDevice;
@@ -75,12 +76,14 @@
       onDevice(this.device);
     }
     use(device) {
-      if (this.device === device) return;
+      const profile = device === "gamepad" ? this.gamepad.profile?.id : null;
+      if (this.device === device && this.profile === profile) return;
       this.device = device;
+      this.profile = profile;
       this.menuDirection = null;
       if (device !== "keyboard") this.keyboard.clear();
       if (device !== "gamepad") this.gamepad.clear();
-      this.onDevice(device);
+      this.onDevice(device, profile);
     }
     clear() {
       this.keyboard.clear();

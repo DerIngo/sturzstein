@@ -7,7 +7,7 @@ Datenbundle-Werkzeug, Browser-Startgerüst und Testwerkzeuge. Seit S03 ist die D
 Kernsimulation mit Grundelementen, Timer, Wertung und terminalen Zuständen implementiert.
 Seit S04 sind Canvas-Darstellung, Tick-Akkumulator, Tastatureingabe und der vollständige kleine
 Browser-Spielablauf implementiert. Die späteren Mechaniken und Komfortmodule bleiben geplant.
-S05 ergänzt Standard-Gamepads, Gerätewechsel und einheitliche Menü-/Spielaktionen.
+S05 ergänzt Standard-Gamepads, ein Competition-Pro-Profil, Gerätewechsel und einheitliche Menü-/Spielaktionen.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
 Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
@@ -112,7 +112,14 @@ Tastatur und Gamepad liefern dieselben diskreten Richtungen und Aktionsflags; Me
 von Simulationseingaben getrennt. Rückspulen und Ton sind als Aktionen vorbereitet, noch nicht als
 Spielfunktionen vorhanden. Die Anwendung meldet diese Grenze sichtbar.
 
-Die Gamepad-API wird pro Renderframe gelesen, auch im Menü. Nur Standard-Mapping wird akzeptiert.
+Die Gamepad-API wird pro Renderframe gelesen, auch im Menü. Standard-Mapping hat Vorrang.
+Zusätzlich wird der Competition Pro (USB-ID 040b:6533) bei leerem Mapping akzeptiert:
+Chromium/Edge-ID mit `Vendor: 040b Product: 6533` oder Firefox-ID mit Präfix `040b-6533-`,
+mindestens zwei Achsen und vier Buttons. Kein allgemeines Raten für andere Geräte.
+Die vom Nutzer unter Windows 11 / Edge bestätigten digitalen Achsen 0/1 liefern links/oben
+mit -1 und rechts/unten mit +1. B0 ist Graben/Bestätigen, B1 Rückspulen/Zurück,
+B2 Neustart und B3 Pause. Profile ändern nur die Eingabeübersetzung, nicht die Simulation.
+Bedienhinweise folgen dem aktiven Profil auch beim Wechsel zwischen zwei Gamepads.
 Stick-Einschaltung ab 0,35, Rückkehr zur Neutralstellung unter 0,25; stärkere Achse gewinnt.
 Bei Gleichstand bleibt eine noch passende Richtung erhalten, sonst gewinnt die vertikale Richtung.
 Steuerkreuz hat Vorrang vor Analogstick; entgegengesetzte Steuerkreuzrichtungen heben sich auf.

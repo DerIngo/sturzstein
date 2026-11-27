@@ -7,7 +7,7 @@ Eigene Level, Grafiken und Regeln; keine Originalassets oder kopierten Originall
 
 Der spielbare Stand enthält eine eigene Höhle mit Graben, Sammeln, Schieben,
 Fall-/Abrollphysik, Zeitlimit, Sieg/Niederlage, Pause und Neustart.
-Seit S05 sind Standard-Gamepads sowie geräteabhängige Bedienhinweise integriert.
+Seit S05 sind Standard-Gamepads und der Competition Pro (040b:6533) sowie geräteabhängige Bedienhinweise integriert.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
 Replays (S06), Rückspulen (S07), Speicherung (S08), Gegner/Sondermechaniken,
@@ -47,7 +47,9 @@ Es gibt keine begrenzten Leben. Beim Schließen der Seite geht diese Partie aktu
 ## Gamepad und Eingabegeräte
 
 Controller anschließen und eine Taste drücken, damit der Browser ihn freigibt. Unterstützt wird
-das Browser-Standard-Mapping; andere Mappings werden ausdrücklich gemeldet statt geraten.
+das Browser-Standard-Mapping sowie ein gezieltes Profil für den Competition Pro
+„USB 2A4K GamePad“ (Vendor 040b, Product 6533) ohne Standard-Mapping.
+Andere unbekannte Mappings werden ausdrücklich gemeldet statt geraten.
 
 | Aktion | Standard-Gamepad |
 |---|---|
@@ -57,6 +59,16 @@ das Browser-Standard-Mapping; andere Mappings werden ausdrücklich gemeldet stat
 | Zurück / Neustartdialog abbrechen | B |
 | Pause/Fortsetzen | Start |
 | Neustart mit Bestätigung | Y |
+
+Beim Competition Pro bewegt der digitale Joystick die Figur und die Menüauswahl.
+Die Belegung basiert auf den vom Nutzer unter Windows 11 / Edge gemeldeten Achsen und Tasten:
+
+| Knopf | Aktion |
+|---|---|
+| Links groß (B0) | Bestätigen; im Spiel halten und Richtung zum Graben |
+| Rechts groß (B1) | Zurück/Abbrechen; im Spiel Rückspulen (folgt in S07) |
+| Links klein (B2) | Neustart mit Bestätigung |
+| Rechts klein (B3) | Pause/Fortsetzen |
 
 Nach einem Bildschirmwechsel gehaltene Tasten/Stick erst loslassen, bevor die nächste Aktion erfolgt.
 Bei diagonaler Stickstellung gewinnt die stärkere Achse; die Deadzone verhindert kleine unbeabsichtigte
@@ -103,7 +115,9 @@ Fenstergrößen/Pixeldichten und große Höhlen ab. Die Lösung liegt als getakt
 Browsertest; das separate Replay-Dateiformat folgt in S06.
 S04 wurde nach lokaler Screenshot-Sichtprüfung und Nutzer-Spielabnahme freigegeben.
 Für S05 stehen der echte Controller-Spieltest und die Nutzerabnahme noch aus.
-Simulierte Gamepad-API-Tests ersetzen keine Controllerhardware. Edge ist bisher nicht geprüft.
+Simulierte Gamepad-API-Tests ersetzen keine Controllerhardware. Für Windows 11 / Edge liegen
+die Rohbelegung und die bisherige Ablehnung des Competition Pro als Nutzerbericht vor;
+der Spieltest mit dem neuen Geräteprofil steht noch aus. Edge wird nicht automatisiert geprüft.
 
 ## Leveldaten und Architektur
 

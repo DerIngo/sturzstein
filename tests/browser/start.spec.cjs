@@ -137,22 +137,31 @@ for (const protocol of ["file", "http"]) {
     expect(errors).toEqual([]);
   });
 
-  test(`Simuliertes Standard-Gamepad über ${protocol}: Spiel, Menüs und Hotplugging`, async ({ page }) => {
+  for (const profile of ["standard", "competition-pro"]) test(`Simuliertes Gamepad ${profile} über ${protocol}: Spiel, Menüs und Hotplugging`, async ({ page }) => {
     await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
     await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
-    await page.addInitScript(() => {
-      window.fakePad = { index: 0, connected: true, mapping: "standard", axes: [0, 0],
-        buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+    await page.addInitScript((profile) => {
+      window.fakePad = { index: 0, connected: true, mapping: profile === "standard" ? "standard" : "",
+        id: "USB 2A4K GamePad (Vendor: 040b Product: 6533)", axes: [0, 0],
+        buttons: Array.from({ length: profile === "standard" ? 17 : 4 }, () => ({ pressed: false, value: 0 })) };
       window.fakePads = [window.fakePad];
       Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => window.fakePads });
-    });
+    }, profile);
     await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
     await expect(page.locator("#primary")).toBeEnabled();
     await observeSimulation(page);
     async function setButtons(indices) {
-      await page.evaluate((pressed) => {
-        window.fakePad.buttons = Array.from({ length: 17 }, (_, index) => ({ pressed: pressed.includes(index), value: Number(pressed.includes(index)) }));
-      }, indices);
+      await page.evaluate(({ indices, profile }) => {
+        const competition = profile === "competition-pro";
+        const pressed = competition ? indices.map((index) => ({ 0: 0, 1: 1, 3: 2, 9: 3 })[index]) : indices;
+        if (competition) window.fakePad.axes = [
+          Number(indices.includes(15)) - Number(indices.includes(14)),
+          Number(indices.includes(13)) - Number(indices.includes(12)),
+        ];
+        window.fakePad.buttons = Array.from({ length: competition ? 4 : 17 }, (_, index) => ({
+          pressed: pressed.includes(index), value: Number(pressed.includes(index)),
+        }));
+      }, { indices, profile });
     }
     async function press(indices) {
       await setButtons(indices);
@@ -160,7 +169,11 @@ for (const protocol of ["file", "http"]) {
     }
     await press([0]);
     await expect(page.locator("#overlay")).toBeHidden();
-    await expect(page.locator("#input-hints")).toContainText("Gamepad");
+    await expect(page.locator("#input-hints")).toContainText(profile === "standard" ? "Gamepad" : "Competition Pro");
+    if (profile === "competition-pro") {
+      await expect(page.locator("#input-hints")).toContainText("Rechts klein Pause");
+      await expect(page.locator("#gamepad-status")).toContainText("Competition Pro erkannt");
+    }
     await press([]);
     await setButtons([0, 15]);
     await advanceTicks(page, 1);

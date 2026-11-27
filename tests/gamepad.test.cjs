@@ -13,6 +13,49 @@ function pad(index = 0) {
 function button(p, index, down = true) {
   p.buttons[index] = { pressed: down, value: Number(down) };
 }
+function competitionPad(index = 0) {
+  return { ...pad(index), id: "USB 2A4K GamePad (Vendor: 040b Product: 6533)", mapping: "",
+    buttons: Array.from({ length: 4 }, () => ({ pressed: false, value: 0 })) };
+}
+
+test("Competition Pro erkennt Chromium-/Firefox-IDs und bildet digitale Achsen sowie alle Knöpfe ab", () => {
+  for (const id of ["USB 2A4K GamePad (Vendor: 040b Product: 6533)", "040b-6533-USB 2A4K GamePad"]) {
+    const p = competitionPad();
+    p.id = id;
+    for (const [axes, direction] of [
+      [[-1, 0], "left"], [[1, 0], "right"], [[0, -1], "up"], [[0, 1], "down"], [[0, 0], null],
+    ]) {
+      p.axes = axes;
+      assert.equal(decode(p).direction, direction);
+    }
+    for (const [index, action] of [[0, "grab"], [1, "rewind"], [2, "restart"], [3, "pause"]]) {
+      button(p, index);
+      assert.deepEqual(decode(p), { direction: null, grab: false, rewind: false,
+        restart: false, pause: false, [action]: true });
+      button(p, index, false);
+    }
+    p.mapping = "standard";
+    button(p, 3);
+    assert.equal(decode(p).restart, true);
+    assert.equal(decode(p).pause, false);
+  }
+});
+
+test("Competition-Pro-Profil akzeptiert keine bloßen Namen, anderen IDs oder unvollständigen Geräte", () => {
+  const { input, setPads, statuses } = controller();
+  for (const change of [
+    { id: "USB 2A4K GamePad" }, { id: "USB 2A4K GamePad (Vendor: 040b Product: 6534)" },
+    { id: "040b-65330-USB 2A4K GamePad" }, { id: "040c-6533-USB 2A4K GamePad" },
+    { axes: [0] }, { buttons: [] }, { mapping: "xr-standard" },
+  ]) {
+    const p = { ...competitionPad(), ...change };
+    if (p.buttons.length) button(p, 0);
+    setPads([p]);
+    assert.equal(input.poll("menu").command, null);
+    assert.equal(input.sample().grab, false);
+    assert.match(statuses.at(-1), /kein unterstütztes Geräteprofil/);
+  }
+});
 
 test("Standard-Mapping erfasst A/B/Y/Start und Steuerkreuz", () => {
   const p = pad();
@@ -159,20 +202,41 @@ test("Blockierte API meldet den Fehler statt Erfolg; trennt aktiven Controller",
   assert.equal(disconnects, 1);
 });
 
-function manager() {
+function manager(pads = [pad()]) {
   const handlers = {};
-  const p = pad();
+  const p = pads[0];
   const commands = [];
   const devices = [];
+  const profiles = [];
   let disconnects = 0;
   const input = new InputManager({ addEventListener: (type, handler) => { handlers[type] = handler; } },
-    { getGamepads: () => [p] }, {
+    { getGamepads: () => pads }, {
       onCommand: (...args) => commands.push(args),
-      onDevice: (device) => devices.push(device), onStatus() {}, onDisconnect: () => disconnects++,
+      onDevice: (device, profile) => { devices.push(device); profiles.push(profile); },
+      onStatus() {}, onDisconnect: () => disconnects++,
     });
   const key = (code) => handlers.keydown({ code, preventDefault() {} });
-  return { input, p, handlers, commands, devices, key, disconnects: () => disconnects };
+  return { input, p, handlers, commands, devices, profiles, key, disconnects: () => disconnects };
 }
+test("Profilhinweise wechseln zwischen Competition Pro und Standard-Gamepad ohne Geräteklassenwechsel", () => {
+  const standard = pad();
+  const competition = competitionPad(1);
+  const { input, profiles, commands } = manager([standard, competition]);
+  button(standard, 0);
+  input.update(0);
+  assert.equal(profiles.at(-1), "standard");
+  button(standard, 0, false);
+  input.update(16);
+  button(competition, 0);
+  input.update(32);
+  assert.equal(profiles.at(-1), "competition-pro");
+  assert.deepEqual(commands, [["confirm"], ["confirm"]]);
+  button(competition, 0, false);
+  input.update(48);
+  button(standard, 0);
+  input.update(64);
+  assert.equal(profiles.at(-1), "standard");
+});
 test("Gerätewechsel verhindert klemmende Tasten und überlässt Tastatur/Maus die Kontrolle", () => {
   const { input, p, key, devices, handlers } = manager();
   input.setContext("play");
