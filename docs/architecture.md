@@ -112,6 +112,9 @@ Canvas-Backing-Store entspricht CSS-Größe mal Geräte-Pixeldichte. Sprites wer
 ganzzahligen Geräte-Pixel-Faktoren gezeichnet, Kameraversatz und interpolierte Positionen
 auf Geräte-Pixel gerundet. Die Kamera bleibt innerhalb der Weltgrenzen; kleine Höhlen sind zentriert.
 Overlay-Menüs und HUD sind DOM-Elemente, die Simulation bleibt davon unabhängig.
+Fokussierte Schaltflächen zeigen unabhängig von der Eingabeart einen sichtbaren Rahmen.
+Dieser nutzt `:focus`, nicht nur `:focus-visible`: Nach einem Mausklick erkennen Browser
+eine anschließende Gamepad-Navigation nicht zuverlässig als Wechsel zur Tastaturnavigation.
 
 ## Einheitliche Eingabe (S05)
 

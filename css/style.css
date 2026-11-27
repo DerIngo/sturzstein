@@ -27,7 +27,7 @@ canvas:focus-visible { outline: 2px solid #7ad8bf; outline-offset: -3px; }
 .buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; }
 button { font: inherit; border: 1px solid #68888b; border-radius: 3px; padding: 10px 16px; cursor: pointer; color: #e4eee8; background: #2b4654; }
 button:hover { background: #3a5b67; }
-button:focus-visible { outline: 3px solid #f1c778; outline-offset: 3px; }
+button:focus { outline: 3px solid #f1c778; outline-offset: 3px; }
 button.primary { background: #e6b968; border-color: #f6d79d; color: #172635; font-weight: bold; }
 button:disabled { opacity: .4; cursor: default; }
 .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; }

@@ -372,6 +372,26 @@ for (const protocol of ["file", "http"]) {
     await expect(page.locator("#overlay")).toBeHidden();
     await press([]);
 
+    const beforeMouseRestart = await page.evaluate(() => window.testState);
+    await page.locator("#restart").click();
+    await expect(page.locator("#dialog-title")).toHaveText("Neu beginnen?");
+    await expect(page.locator("#secondary")).toBeFocused();
+    await expect(page.locator("#secondary")).toHaveCSS("outline-width", "3px");
+    await press([14]);
+    await expect(page.locator("#primary")).toBeFocused();
+    await expect(page.locator("#primary")).toHaveCSS("outline-style", "solid");
+    await expect(page.locator("#primary")).toHaveCSS("outline-width", "3px");
+    await press([]);
+    await press([15]);
+    await expect(page.locator("#secondary")).toBeFocused();
+    await expect(page.locator("#secondary")).toHaveCSS("outline-style", "solid");
+    await expect(page.locator("#secondary")).toHaveCSS("outline-width", "3px");
+    await press([]);
+    await press([0]);
+    await expect(page.locator("#overlay")).toBeHidden();
+    expect(await page.evaluate(() => window.testState)).toEqual(beforeMouseRestart);
+    await press([]);
+
     await press([3]);
     await expect(page.locator("#dialog-title")).toHaveText("Neu beginnen?");
     await expect(page.locator("#secondary")).toBeFocused();
