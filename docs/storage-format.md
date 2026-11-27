@@ -31,7 +31,7 @@ Gelöste Level bleiben gelöst, auch wenn sie in einer Pack-Aktualisierung versc
 Gelöste sowie die ersten drei ungelösten Kampagnenlevel werden freigeschaltet;
 bereits gespeicherte Freischaltungen werden beim Umsortieren nicht zurückgenommen.
 Seit S09 berücksichtigt ein vorläufiger zyklischer Höhlenwechsel diese Freigaben.
-Die vollständige Levelauswahl folgt in S12.
+Seit S12 bietet die scrollbare Levelauswahl direkten Zugriff auf freigeschaltete Höhlen.
 
 Bestwerte sind zusätzlich an Levelrevision, Regelversion, Anfangsseed und Rückspulklasse gebunden.
 Ein Lauf ersetzt den passenden Bestwert nur bei höherer Punktzahl oder bei gleicher Punktzahl

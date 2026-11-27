@@ -31,6 +31,10 @@
   let pendingPack = null;
   let collectionAction = null;
   let collectionReturn = "start";
+  let viewReturn = "start";
+  let viewFocus = null;
+  let viewGeneration = 0;
+  let confirmationFocus = null;
 
   function menuButtons() {
     return [...overlay.querySelectorAll("button")].filter((button) => !button.hidden && !button.disabled && !button.closest("[hidden]"));
@@ -45,7 +49,7 @@
   }
   function updateProfile() {
     if (!saveStore) return;
-    get("level-name").textContent = `${String(pack.levels.findIndex((entry) => entry.id === level.id) + 1).padStart(2, "0")} · ${level.name}`;
+    get("level-name").textContent = `${pack.title} · ${String(pack.levels.findIndex((entry) => entry.id === level.id) + 1).padStart(2, "0")} · ${level.name}`;
     const next = nextPlayableLevel();
     nextLevel.hidden = !next || !["start", "resume", "paused", "lost", "won"].includes(screen);
     nextLevel.textContent = next ? `Nächste Höhle: ${next.name} …` : "Keine weitere Höhle freigeschaltet";
@@ -67,31 +71,44 @@
   }
 
   function show(next, message = "") {
+    if (next === "confirm") confirmationFocus = document.activeElement;
     screen = next;
+    viewGeneration++;
+    overlay.querySelector(".panel").scrollTop = 0;
     input?.setContext(["playing", "rewinding"].includes(next) ? "play" : next === "lost" ? "lost" : "menu",
       { preserveHeld: next === "rewinding" });
     overlay.hidden = ["playing", "rewinding"].includes(next);
     get("pause").disabled = !["playing", "rewinding", "paused"].includes(next);
     get("pause").textContent = next === "paused" ? "Fortsetzen" : "Pause";
-    get("restart").disabled = ["loading", "start", "resume", "error", "confirm", "rewinding"].includes(next);
+    get("restart").disabled = !["playing", "paused", "lost", "won"].includes(next);
     primary.disabled = next === "error" || next === "loading";
-    primary.hidden = next === "packs";
+    primary.hidden = ["packs", "help", "settings"].includes(next);
+    get("continue").hidden = next !== "start";
+    get("continue").disabled = !(started || saveStore?.restored) || state?.status === "won";
+    const menu = ["start", "resume", "paused", "lost", "won"].includes(next);
+    get("help").hidden = !menu;
+    get("settings").hidden = !menu;
+    get("main-menu").hidden = !["resume", "paused", "lost", "won"].includes(next);
+    get("help-content").hidden = next !== "help";
+    get("level-help").textContent = level ? level.name + " · " + level.description : "";
     get("manage-packs").hidden = !["start", "resume", "paused", "lost", "won"].includes(next);
     get("import-pack").hidden = next !== "packs";
     get("pack-list").hidden = next !== "packs";
-    secondary.hidden = !["confirm", "resume", "packs"].includes(next);
-    secondary.textContent = next === "resume" ? "Neu beginnen …" : "Zurück";
-    toggleHints.hidden = !["start", "resume", "paused", "lost", "won"].includes(next);
+    secondary.hidden = !["confirm", "resume", "packs", "help", "settings"].includes(next);
+    secondary.textContent = next === "resume" ? "Neues Spiel …" : "Zurück";
+    toggleHints.hidden = next !== "settings";
     replayExport.hidden = !["paused", "won", "lost"].includes(next);
     replayExport.disabled = !recorder?.ticks;
     const dialogs = {
-      start: [level?.name || "Sturzstein", level?.description || "", "Höhle betreten"],
+      start: ["Sturzstein", "Sammle Edelsteine und finde den Ausgang. Neues Spiel beginnt in der ersten Kampagnenhöhle. Über die Levelauswahl erreichst du freigeschaltete und eigene Höhlen.", "Neues Spiel"],
+      help: ["Hilfe", "Mit oben/unten oder dem Mausrad scrollen. Zurück oder Esc schließt die Hilfe.", ""],
+      settings: ["Einstellungen", "Bedienhinweise lassen sich unter dem Spielfeld ein- oder ausblenden. Die Auswahl wird in diesem Browser gespeichert.", ""],
       resume: ["Partie fortsetzen?", state?.status === "lost"
         ? "Der gespeicherte Versuch war bereits beendet. Ohne gespeicherten Rückspulverlauf kannst du ihn nur neu starten oder als Replay exportieren."
         : "Dein letzter Zustand ist geladen. Zeit vergeht erst nach deiner Bestätigung. Der Rückspulverlauf beginnt hier neu.",
         state?.status === "lost" ? "Letzten Versuch anzeigen" : "Gespeicherte Partie fortsetzen"],
       paused: ["Pause", message || "Die Höhle wartet. Zeit und Physik sind angehalten.", "Fortsetzen"],
-      packs: ["Levelpacks", "Wähle eine Höhle oder importiere eine native JSON-Datei.", ""],
+      packs: ["Levelauswahl", "Die Kampagne öffnet gelöste und die ersten drei ungelösten Höhlen. Zusatzhöhlen sind direkt zugänglich.", ""],
       confirm: confirmation === "collection"
         ? [collectionAction === "remove" ? "Levelpack entfernen?" : "Levelpack übernehmen?",
           collectionAction === "remove"
@@ -99,9 +116,11 @@
             : `${pendingPack.title} · Autor ${pendingPack.author} · Revision ${pendingPack.revision}. ${pendingPack.source} · ${pendingPack.license}. Lösbarkeit ungeprüft. Eine gleiche Pack-ID wird ersetzt. Fortschritte und Partien geänderter Level werden verworfen.`,
           collectionAction === "remove" ? "Entfernen" : "Übernehmen"]
         : confirmation === "level"
-        ? ["Höhle wechseln?", `${pendingLevel.name}: ${pendingLevel.description} Eine vorhandene Partie wird ersetzt; Fortschritt und Bestwerte bleiben erhalten.`, "Höhle betreten"]
+        ? ["Höhle wechseln?", `${pendingLevel.name} · Schwierigkeit ${pendingLevel.difficulty}/5 · ${pendingLevel.quota} Edelsteine · ${pendingLevel.timeLimit} Sekunden. ${pendingLevel.description} Eine vorhandene Partie wird ersetzt; Fortschritt und Bestwerte bleiben erhalten.`, "Höhle betreten"]
         : confirmation === "storage"
         ? ["Speicherdaten ersetzen?", "Vorhandene Browserdaten werden durch die Daten dieser Sitzung ersetzt. Beschädigte oder inkompatible Partien gehen verloren. Nicht lesbare Bestwerte und Einstellungen können nicht übernommen werden.", "Daten ersetzen"]
+        : confirmation === "newgame"
+        ? ["Neu beginnen?", "Die aktuelle Partie wird durch einen neuen Versuch in der ersten Kampagnenhöhle ersetzt. Fortschritt und Bestwerte bleiben erhalten.", "Neues Spiel"]
         : ["Neu beginnen?", "Die aktuelle Partie wird verworfen. Dieselbe Höhle startet mit voller Zeit neu.", "Neu starten"],
       won: ["Ausgang erreicht!", `Du hast die Höhle geschafft. ${state?.score || 0} Punkte – gut gemacht!`, "Noch einmal"],
       lost: ["Verschüttet?", `${state?.reason || "Diese Runde ist vorbei."} ${history?.availableTicks
@@ -120,6 +139,8 @@
       canvas.focus();
     } else if (next === "confirm") {
       secondary.focus();
+    } else if (next === "help" || next === "settings") {
+      secondary.focus();
     } else if (next === "packs") {
       get("import-pack").focus();
     } else if (!primary.disabled) {
@@ -136,7 +157,9 @@
     get("score").textContent = String(state.score);
     get("rewind-time").textContent = `${((history?.availableTicks || 0) * app.Simulation.TICK_MS / 1000).toFixed(1).replace(".", ",")} s`;
     get("rewind-status").textContent = `${recorder?.replay.usedRewind ? "Mit Rückspulen" : "Ohne Rückspulen"} · Z/U oder Controller-Rückspultaste halten, auch nach einer Niederlage.`;
-    status.textContent = screen === "rewinding"
+    status.textContent = state.status === "lost" ? state.reason
+      : state.status === "won" ? `Ausgang erreicht · ${state.score} Punkte.`
+      : screen === "rewinding"
       ? history.availableTicks ? "Rückspulen … Zum Weiterspielen loslassen." : "Anfang des verfügbaren Verlaufs erreicht. Zum Weiterspielen loslassen."
       : state.collected >= state.quota
       ? "Die Quote ist erfüllt. Der grün leuchtende Ausgang ist offen!"
@@ -152,7 +175,30 @@
     renderer.reset();
     show("playing");
   }
+  function newGame() {
+    pendingPack = saveStore.packs[0];
+    pendingLevel = pendingPack.levels[0];
+    if ((started || saveStore.restored) && state.status !== "won") {
+      beforeConfirm = screen;
+      confirmation = "newgame";
+      show("confirm");
+    } else {
+      pack = pendingPack;
+      level = pendingLevel;
+      restart();
+    }
+  }
+  function returnFromView() {
+    show(viewReturn);
+    if (viewFocus && !viewFocus.hidden) viewFocus.focus();
+  }
+  function cancelConfirmation() {
+    show(beforeConfirm);
+    if (confirmationFocus?.isConnected && confirmationFocus.closest("#overlay")
+      && !confirmationFocus.closest("[hidden]") && !confirmationFocus.disabled) confirmationFocus.focus();
+  }
   function confirm() {
+    if (screen === "start") { newGame(); return; }
     if (screen === "confirm" && confirmation === "collection") {
       try {
         // Die angehaltene Partie wurde bereits beim Öffnen der Verwaltung gesichert.
@@ -192,7 +238,7 @@
       show(beforeConfirm);
       return;
     }
-    if (screen === "confirm" && confirmation === "level") {
+    if (screen === "confirm" && ["level", "newgame"].includes(confirmation)) {
       if (pendingPack) pack = pendingPack;
       level = pendingLevel;
     }
@@ -201,6 +247,10 @@
   }
   function command(action, direction) {
     if (["loading", "error"].includes(screen)) return;
+    if (action === "navigate" && screen === "help" && ["up", "down"].includes(direction)) {
+      overlay.querySelector(".panel").scrollBy({ top: direction === "down" ? 100 : -100 });
+      return;
+    }
     if (action === "navigate" && !overlay.hidden) {
       const buttons = menuButtons();
       const index = buttons.indexOf(document.activeElement);
@@ -210,7 +260,7 @@
     }
     if (action === "confirm") {
       if (!overlay.hidden && menuButtons().includes(document.activeElement)) document.activeElement.click();
-      else if (screen !== "packs") confirm();
+      else if (!["packs", "help", "settings"].includes(screen)) confirm();
       return;
     }
     if (action === "rewind") {
@@ -230,10 +280,12 @@
       show("confirm");
     } else if (action === "restart" && ["won", "lost"].includes(screen)) {
       restart();
+    } else if (action === "escape" && ["help", "settings"].includes(screen)) {
+      returnFromView();
     } else if (action === "escape" && screen === "packs") {
       show(collectionReturn);
     } else if (action === "escape" && screen === "confirm") {
-      show(beforeConfirm);
+      cancelConfirmation();
     } else if (action === "escape" && ["won", "lost"].includes(screen)) {
       show("start");
     } else if (["escape", "pause"].includes(action)) {
@@ -272,11 +324,10 @@
   window.addEventListener("pagehide", saveCurrent);
   primary.addEventListener("click", confirm);
   secondary.addEventListener("click", () => {
-    if (screen === "resume") {
-      beforeConfirm = screen;
-      confirmation = "restart";
-      show("confirm");
-    } else show(screen === "packs" ? collectionReturn : beforeConfirm);
+    if (screen === "resume") newGame();
+    else if (["help", "settings"].includes(screen)) returnFromView();
+    else if (screen === "confirm") cancelConfirmation();
+    else show(screen === "packs" ? collectionReturn : beforeConfirm);
   });
   toggleHints.addEventListener("click", () => {
     saveStore.data.settings.showHints = !saveStore.data.settings.showHints;
@@ -344,7 +395,11 @@
         const unlocked = !saveStore.builtins.some((p) => p.id === candidate.id)
           || saveStore.data.progress.some((p) => p.packId === candidate.id && p.levelId === entry.id && p.unlocked);
         const button = document.createElement("button");
-        button.textContent = entry.name + (saveStore.builtins.some((p) => p.id === candidate.id) ? "" : " · Lösbarkeit ungeprüft");
+        const progress = saveStore.data.progress.find((p) => p.packId === candidate.id && p.levelId === entry.id);
+        const builtin = saveStore.builtins.some((p) => p.id === candidate.id);
+        button.textContent = entry.name + (builtin
+          ? progress?.solved ? " · gelöst" : unlocked ? "" : " · gesperrt"
+          : " · Lösbarkeit ungeprüft");
         button.disabled = !unlocked;
         button.addEventListener("click", () => {
           pendingPack = candidate;
@@ -363,6 +418,22 @@
       }
     }
   }
+  get("continue").addEventListener("click", () => {
+    started = true;
+    show(state.status === "playing" ? "playing" : state.status);
+  });
+  get("main-menu").addEventListener("click", () => {
+    saveCurrent();
+    show("start");
+  });
+  for (const name of ["help", "settings"]) {
+    get(name).addEventListener("click", () => {
+      viewReturn = screen;
+      viewFocus = get(name);
+      saveCurrent();
+      show(name);
+    });
+  }
   get("manage-packs").addEventListener("click", () => {
     collectionReturn = screen;
     saveCurrent();
@@ -374,16 +445,17 @@
     const file = get("pack-file").files[0];
     get("pack-file").value = "";
     if (!file) return;
+    const generation = ++viewGeneration;
     try {
       if (file.size > app.Levels.limits.bytes) throw new Error(file.name + ": Datei überschreitet 1 MiB.");
       const candidate = app.Levels.parsePack(await file.text(), file.name);
-      if (screen !== "packs") return;
+      if (screen !== "packs" || generation !== viewGeneration) return;
       if (saveStore.builtins.some((p) => p.id === candidate.id)) throw new Error(file.name + ": Integriertes Pack ist geschützt.");
       const previous = saveStore.packs.find((p) => p.id === candidate.id);
       if (previous) app.Packs.replacement(previous, candidate);
       app.Packs.validateCollection([...saveStore.packs.filter((p) => !saveStore.builtins.some((b) => b.id === p.id) && p.id !== candidate.id), candidate], saveStore.builtins);
       collectionConfirm("import", candidate);
-    } catch (error) { if (screen === "packs") get("dialog-text").textContent = file.name + ": " + error.message; }
+    } catch (error) { if (screen === "packs" && generation === viewGeneration) get("dialog-text").textContent = file.name + ": " + error.message; }
   });
 
   async function boot() {
@@ -414,6 +486,7 @@
             ? "Competition Pro: Joystick bewegen · Links groß + Richtung graben · Rechts klein Pause · Links klein Neustart · Links groß bestätigen · Rechts groß im Spiel / nach Niederlage halten: Rückspulen; sonst zurück"
             : "Gamepad: Steuerkreuz / linker Stick bewegen · A + Richtung graben · Start Pause · Y Neustart · A bestätigen · B im Spiel / nach Niederlage halten: Rückspulen; sonst zurück"
           : `${device === "mouse" ? "Maus: Menüs anklicken. " : ""}Tastatur: Pfeile / WASD bewegen · Leertaste / Umschalt + Richtung graben · Z/U halten: Rückspulen · Esc / P Pause · R Neustart · Enter bestätigen`;
+        get("help-controls").textContent = get("input-hints").textContent;
       },
       onStatus(message) { get("gamepad-status").textContent = message; },
       onDisconnect() {

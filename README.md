@@ -29,9 +29,30 @@ Alternativ im Projektordner `python3 -m http.server 8000 --bind 127.0.0.1` start
 GitHub Pages veröffentlicht den Repository-Stamm von `main` automatisch nach Pushes.
 `.nojekyll` sorgt für unveränderte statische Dateien; ein eigener Build-Workflow ist nicht erforderlich.
 
+## Menüs und Hilfe
+
+Das Titelmenü bietet **Neues Spiel**, **Fortsetzen**, **Levelauswahl …**, **Hilfe …**
+und **Einstellungen …**. Ohne gespeicherte oder angehaltene Partie ist Fortsetzen gesperrt.
+Ein geladenes Spiel wartet zuerst im Fortsetzen-Dialog. Über **Hauptmenü** erreichst du dort
+ebenfalls alle Menüpunkte. Neues Spiel beginnt in der ersten Kampagnenhöhle und bestätigt
+das Ersetzen einer laufenden Partie. Fortschritt und Bestwerte bleiben erhalten.
+
+Pause, Sieg und Niederlage führen zur Levelauswahl und ins Hauptmenü.
+Die Hilfe erklärt Steuerung, Mechaniken, Rückspulen und die aktuelle Höhle.
+Die Levelauswahl kennzeichnet gelöste und gesperrte Kampagnenhöhlen. Lange Listen sind scrollbar,
+auch wenn du mit Tastatur oder Gamepad navigierst. Vor dem Betreten erscheinen Lernziel,
+Schwierigkeit, Quote und Zeitlimit.
+
+Die Hilfe lässt sich mit oben/unten oder dem Mausrad scrollen.
+Zurück oder Esc kehrt aus Hilfe und Einstellungen zum vorherigen Menü zurück.
+Die Höhle bleibt dabei angehalten. Nach einer Unterbrechung oder Controllertrennung muss sie
+bewusst fortgesetzt werden. Native Dateiauswahl und Importe halten die Simulation ebenfalls an.
+
+Der Nutzer hat S11 mit „hat geklappt, mach weiter“ abgenommen.
+
 ## Erste Höhle spielen
 
-„Höhle betreten“ wählen, drei türkisfarbene Edelsteine einsammeln und den anschließend grün
+„Neues Spiel“ wählen, drei türkisfarbene Edelsteine einsammeln und den anschließend grün
 leuchtenden Ausgang betreten. Die Erde lässt sich weggraben; Felsen können nach Entfernen
 ihrer Unterlage herunterfallen. Ein bereits fallender Fels oder Edelstein ist tödlich.
 Die schmale Mittelwand endet unten: Der Weg in die rechte Höhlenhälfte führt daran vorbei.
@@ -94,7 +115,7 @@ dass Soundeffekte und Tonsteuerung erst in S14 hinzukommen.
 Im Start-, Fortsetzen-, Pause- oder Ergebnisdialog führt **„Nächste Höhle: …“** zyklisch durch
 die freigeschalteten Höhlen. Ein Wechsel wird bestätigt, bevor er die aktuelle Partie ersetzt;
 „Zurück“ erhält sie unverändert. Die ersten drei Höhlen sind anfangs freigeschaltet.
-Die vollständige Levelauswahl folgt in S12.
+Die scrollbare **Levelauswahl …** bietet außerdem direkten Zugriff auf alle freigeschalteten Höhlen.
 
 - **Das Glutkäfer-Tor:** Orange Käfer folgen der linken Wand. Ein fallender Fels auf einem Käfer
   löst eine Explosion aus, die Mauern zerstört und freien Raum hinterlässt.
@@ -165,8 +186,8 @@ Ein Neustart statt Fortsetzen braucht eine Bestätigung.
 Der Rückspulverlauf beginnt nach dem Laden neu, die Kennzeichnung „Mit Rückspulen“ bleibt jedoch erhalten.
 Ein gespeicherter verlorener Versuch kann angezeigt/exportiert werden; ohne alten Verlauf muss er neu beginnen.
 Fortschritt und Bestwerte mit/ohne Rückspulen werden getrennt angezeigt.
-Über „Bedienhinweise: an/aus“ im Menü lässt sich eine erste Einstellung dauerhaft ändern.
-Tonsteuerung und vollständige Level-/Einstellungsmenüs folgen weiterhin in S14 bzw. S12.
+Unter **Einstellungen …** schaltet „Bedienhinweise: an/aus“ die Hinweise unter dem Spielfeld dauerhaft um.
+Die Hilfe bleibt über das Menü erreichbar. Tonsteuerung folgt in S14.
 
 Die Speicherung gilt nur für den jeweiligen Browser und Speicherbereich – keine Synchronisation
 zwischen GitHub Pages, lokalem Server und `file://`. Browserdaten löschen entfernt auch die Spieldaten.
@@ -245,7 +266,7 @@ Visuelle Replay-Wiedergabe im Spiel ist nicht Teil dieses Schritts.
 Das native Format und die bewusst nicht implementierten Fremdformat-Importer sind in
 [docs/level-format.md](docs/level-format.md) beschrieben.
 Neue native JSON-Packs unter `levels/` ablegen, dann `npm run bundle` und die Prüfungen ausführen.
-Im Spiel öffnet **Levelpacks …** die Sammlung. **Levelpack importieren …** liest eine lokale
+Im Spiel öffnet **Levelauswahl …** die Sammlung. **Levelpack importieren …** liest eine lokale
 JSON-Datei. Als kleine Vorlage dient [examples/meine-hoehlen.json](examples/meine-hoehlen.json).
 Speichere sie als Datei und importiere sie. Der Probegang ist mit zwei Schritten rechts lösbar.
 Zusatzhöhlen sind direkt anwählbar und als „Lösbarkeit ungeprüft“ gekennzeichnet.

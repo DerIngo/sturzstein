@@ -48,4 +48,11 @@ kbd { color: #e6dcbf; border-bottom: 1px solid #6f7a7f; padding: 0 3px; font: in
 
 #pack-list { max-height: 35vh; overflow-y: auto; width: 100%; }
 #pack-list button { display: block; width: 100%; margin-bottom: 0.4rem; }
-.panel { max-height: 90vh; overflow-y: auto; }
+
+
+#help-content { text-align: left; width: 100%; }
+#help-content h3 { font-size: 15px; color: #f1cf8b; }
+.panel button { max-width: 100%; overflow-wrap: anywhere; }
+.panel p { overflow-wrap: anywhere; }
+
+.level { min-width: 0; overflow-wrap: anywhere; }

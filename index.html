@@ -11,7 +11,7 @@
   <main>
     <header>
       <div><p class="eyebrow">Ein Funkeln in der Tiefe</p><h1>STURZSTEIN</h1></div>
-      <span class="tag">LEVELPACKS · S11</span>
+      <span class="tag">MENÜS · S12</span>
     </header>
     <section class="hud" aria-label="Spielstand">
       <span class="level" id="level-name"></span>
@@ -28,14 +28,32 @@
           <p id="dialog-text">Die Höhle wird vorbereitet …</p>
           <div class="buttons">
             <button type="button" class="primary" id="primary" disabled>Starten</button>
+            <button type="button" id="continue" hidden>Fortsetzen</button>
             <button type="button" id="secondary" hidden>Zurück</button>
             <button type="button" id="replay-export" hidden>Replay herunterladen</button>
             <button type="button" id="toggle-hints" hidden>Bedienhinweise: an</button>
             <button type="button" id="next-level" hidden>Nächste Höhle …</button>
-            <button type="button" id="manage-packs" hidden>Levelpacks …</button>
+            <button type="button" id="manage-packs" hidden>Levelauswahl …</button>
+            <button type="button" id="help" hidden>Hilfe …</button>
+            <button type="button" id="settings" hidden>Einstellungen …</button>
+            <button type="button" id="main-menu" hidden>Hauptmenü</button>
             <button type="button" id="import-pack" hidden>Levelpack importieren …</button>
             <input type="file" id="pack-file" accept=".json,application/json" hidden>
             <div id="pack-list" hidden></div>
+            <section id="help-content" hidden>
+              <h3>Bedienung</h3>
+              <p id="help-controls"></p>
+              <p>Menüs mit Richtung oder Tab auswählen und bestätigen. Gehaltene Tasten und den Stick nach einem Bildschirmwechsel erst loslassen.</p>
+              <h3>Diese Höhle</h3>
+              <p id="level-help"></p>
+              <h3>Die Höhlenregeln</h3>
+              <p>Sammle die angezeigte Edelsteinquote und betrete den grün leuchtenden Ausgang vor Zeitablauf. Erde lässt sich weggraben. Ein ruhender Fels lässt sich nach kurzem Halten horizontal in ein freies Feld schieben.</p>
+              <p>Fallende Felsen und Edelsteine sind gefährlich. Glutkäfer folgen der linken Wand, Kristallfalter der rechten. Kontakt ist tödlich. Ein Steinschlag löst 3×3-Explosionen aus. Beim Falter entstehen Edelsteine.</p>
+              <p>Die grüne Amöbe wächst in Erde und freien Raum. Eingeschlossen wird sie zu Edelsteinen, über der Größengrenze zu Felsen. Violett leuchtende Umwandlungswände tauschen fallende Felsen und Edelsteine. Ein rotes Kreuz zeigt blockierte Ausgabe, ein grauer Strich den Ablauf.</p>
+              <h3>Rückspulen und Speichern</h3>
+              <p>Halte die Rückspultaste im Spiel oder nach einer Niederlage. Das nimmt die verfügbare Spielzeit zurück. Nach dem Loslassen spielst du weiter. Bestwerte werden mit und ohne Rückspulen getrennt geführt.</p>
+              <p>Die Partie wird in diesem Browser gespeichert. Nach dem Laden setzt du sie bewusst fort. Der Rückspulverlauf beginnt dabei neu. Über die Levelauswahl importierst und verwaltest du eigene JSON-Packs.</p>
+            </section>
             <button type="button" id="storage-reset" hidden>Speicherdaten ersetzen …</button>
           </div>
         </section>

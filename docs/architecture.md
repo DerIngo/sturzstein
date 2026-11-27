@@ -50,7 +50,7 @@ Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-Syst
 Klassische Skripte registrieren ihre APIs unter `globalThis.Sturzstein`. Reine Module exportieren
 zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine transpilierten Quellen.
 
-| Datei/Bereich (S02–S10) | Vertrag |
+| Datei/Bereich (S02–S12) | Vertrag |
 |---|---|
 | `js/levels.js` | `parsePack(text, source)`, `validatePack(value, source)` liefern ein normalisiertes Pack oder werfen einen beschreibenden Fehler |
 | `js/simulation.js` | `createState(pack, levelId)` erzeugt einen neuen Zustand; `step(state, {direction, grab})` verändert ihn um genau einen Tick |
@@ -61,11 +61,11 @@ zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine trans
 | `js/input.js` | `InputManager.update(now)` für Menüaktionen; `sample()` liefert Tick-Eingaben, `rewinding()` liest die Halteaktion ohne Eingabepuffer zu verbrauchen |
 | `js/gamepad.js` | Standard-Mapping, Deadzone, Tastenkanten, Polling, Hotplugging und sichtbare API-Fehler |
 | `js/renderer.js` | Zeichnet Zustand und vorherigen Zustand mit Interpolationsfaktor; verändert weder Simulation noch Zufall |
-| `js/main.js` | Verbindet Module mit Browser, HUD, Pause und später Bildschirmverwaltung |
+| `js/main.js` | Verbindet Module mit Browser, HUD, Pause und Bildschirmverwaltung |
 | `levels/*.json`, `js/level-bundle.js` | Maßgebliche Textdaten und generiertes, mitgeliefertes Bundle |
 | `tools/`, `tests/` | Bundle-/Asset-Erzeugung und automatisierte Prüfungen |
 
-Später kommen Audio und dauerhafte Packverwaltung hinzu, ohne leere Platzhalter vorwegzunehmen.
+Audio folgt in S14. Die dauerhafte Packverwaltung ist seit S11 integriert.
 Spielerische Pause gehört zur Anwendung,
 nicht als Echtzeitquelle in die Simulation. Render-/Soundereignisse sind aus Zustandsänderungen ableitbar.
 
@@ -121,7 +121,7 @@ Das Einstiegspack erhält Revision 2 durch Ergänzung; die erste Höhle behält 
 
 Ein vorläufiger zyklischer Höhlenwechsel bietet die freigeschalteten Beispiele in Pack-Reihenfolge an.
 Vor Ersetzung der Partie steht ein Bestätigungsdialog; Abbrechen erhält auch eine noch nicht fortgesetzte
-Speicherung. Fortschritt und Bestwerte bleiben ID-basiert. Dies ersetzt nicht die vollständige Levelauswahl S12.
+Speicherung. Fortschritt und Bestwerte bleiben ID-basiert. Seit S12 ergänzt eine scrollbare Levelauswahl den zyklischen Wechsel.
 Zwei Spritephasen je Gegner, eine Drehung zur Blickrichtung und vier Explosionsphasen machen die Zustände
 sichtbar, ohne Simulationsdaten oder Tickdauer zu verändern.
 
@@ -305,3 +305,29 @@ Ein Vergleich mit dem zuletzt gelesenen/geschriebenen Dokument erkennt zwischenz
 vor dem nächsten Schreiben und schützt sie vor automatischem Überschreiben.
 Format, Grenzen, Validierung, Wiederherstellung und bewusstes Ersetzen:
 [storage-format.md](storage-format.md).
+
+## Menüs und Spielrückmeldungen (S12)
+
+`main.js` hält den Bildschirmzustand außerhalb der Simulation. Ausschließlich `playing`
+und `rewinding` aktivieren den Tick-Akkumulator. Titelmenü, Fortsetzen-Dialog, Pause,
+Ergebnisse, Levelauswahl, Hilfe, Einstellungen und Bestätigungen verwenden denselben
+Eingabekontext für Menüs. Zurück aus Hilfe und Einstellungen stellt das vorherige Menü und
+den auslösenden Fokus wieder her. Jeder Bildschirmwechsel sperrt gehaltene Gamepadaktionen
+bis zur Neutralstellung.
+
+Neues Spiel startet die erste Kampagnenhöhle. Eine laufende oder geladene Partie wird erst
+nach Bestätigung ersetzt. Fortsetzen nutzt den vorhandenen Zustand und Recorder.
+Die vorhandenen Speicherformate 1/2 sowie Simulation und Replays benötigen keine Erweiterung.
+
+Die Levelauswahl erzeugt Einträge aus der gesamten validierten Sammlung und zeigt gelöste,
+gesperrte und ungeprüfte Höhlen an. Native Fokussierung scrollt den gewählten Knopf in Sicht.
+Abbrechen einer Bestätigung stellt den auslösenden Menüfokus wieder her.
+Lange Titel umbrechen innerhalb des Panels. Alle Inhalte aus Packs bleiben Text.
+Eine Generation pro Ansicht und Dateiauswahl verhindert, dass ein verspätetes Dateilesen
+eine inzwischen verlassene oder neu geöffnete Ansicht verändert.
+
+Hilfe und Einstellungen pausieren die Welt. Gerätehinweise in Hilfe und Fußzeile stammen aus
+demselben Eingabeprofil. Die Hilfe zeigt außerdem die Beschreibung der aktuellen Höhle.
+Oben/unten scrollt ihren Inhalt,
+sodass längere Texte auch per Gamepad erreichbar sind.
+Der HUD-Status nennt bei Sieg oder Niederlage das Ergebnis beziehungsweise die Todesursache.

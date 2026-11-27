@@ -17,6 +17,7 @@
         }[code];
         if ((code === "Enter" || code === "Space") && event.target?.closest?.("button, a")) {
           onActivity();
+          if (event.repeat) event.preventDefault();
           return;
         }
         if (!directions[code] && !command && !["Space", "ShiftLeft", "ShiftRight"].includes(code)) return;

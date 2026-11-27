@@ -109,7 +109,7 @@ for (const protocol of ["file", "http"]) {
     });
     await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
     await expect(page.locator("#primary")).toBeEnabled();
-    await expect(page.locator("#dialog-title")).toHaveText("Ein Funkeln im Dunkeln");
+    await expect(page.locator("#dialog-title")).toHaveText("Sturzstein");
     await expect(page.locator("#status")).toContainText("Noch 3 Edelsteine");
     await page.locator("#primary").click();
     await expect(page.locator("#overlay")).toBeHidden();
@@ -262,7 +262,7 @@ for (const protocol of ["file", "http"]) {
     await expect(page.locator("#dialog-title")).toHaveText("Höhle wechseln?");
     await page.locator("#secondary").click();
     await expect(page.locator("#level-name")).toContainText(pack.levels[0].name);
-    await expect(page.locator("#dialog-title")).toHaveText("Ein Funkeln im Dunkeln");
+    await expect(page.locator("#dialog-title")).toHaveText("Sturzstein");
 
     for (const levelId of ["glutkaefer-tor", "kristallkette"]) {
       const solution = require(`../../replays/sturzstein-einstieg/${levelId}.json`);
@@ -411,7 +411,9 @@ for (const protocol of ["file", "http"]) {
     await page.keyboard.up("KeyZ");
     await page.clock.runFor(16);
     await page.keyboard.press("KeyP");
+    await page.locator("#settings").click();
     await page.locator("#toggle-hints").click();
+    await page.locator("#secondary").click();
     await expect(page.locator("#input-hints")).toBeHidden();
     const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey);
     expect(saved.session.state).toEqual(await page.evaluate(() => window.testState));
@@ -668,7 +670,9 @@ for (const mode of ["blocked", "quota", "corrupt", "incompatible"]) {
     );
     await page.keyboard.press("KeyP");
     if (mode === "corrupt" || mode === "incompatible") {
+      await page.locator("#settings").click();
       await page.locator("#toggle-hints").click();
+      await page.locator("#secondary").click();
       expect(await page.evaluate((key) => localStorage.getItem(key), storageKey)).toBe(text);
       await page.locator("#storage-reset").click();
       await page.locator("#secondary").click();
@@ -796,7 +800,7 @@ for (const protocol of ["file", "http"]) {
     await page.getByRole("button", { name: "Überarbeitet entfernen …", exact: true }).click();
     await page.locator("#primary").click();
     await page.reload();
-    await expect(page.locator("#dialog-title")).toHaveText("Ein Funkeln im Dunkeln");
+    await expect(page.locator("#dialog-title")).toHaveText("Sturzstein");
     await page.locator("#manage-packs").click();
     await expect(page.locator("#pack-list")).not.toContainText("Überarbeitet");
   });
@@ -815,4 +819,165 @@ test("Import bei voller Speicherquote bleibt sichtbar temporär spielbar", async
   await page.locator("#primary").click();
   await expect(page.locator("#overlay")).toBeHidden();
   await expect(page.locator("#storage-status")).toContainText("QuotaExceededError");
+});
+
+for (const protocol of ["file", "http"]) {
+  test(`Menüs über ${protocol}: Hilfe, Einstellungen, Hauptmenü und Neues Spiel bewahren angehaltene Partien`, async ({ page }) => {
+    await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
+    await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
+    await expect(page.locator("#continue")).toBeDisabled();
+    await expect(page.locator("#primary")).toHaveText("Neues Spiel");
+    await page.locator("#help").click();
+    await expect(page.locator("#level-help")).toContainText(pack.levels[0].description);
+    await expect(page.locator("#help-controls")).toContainText("Tastatur");
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#help")).toBeFocused();
+    await page.locator("#settings").click();
+    await page.locator("#toggle-hints").click();
+    await expect(page.locator("#input-hints")).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#settings")).toBeFocused();
+    await observeSimulation(page);
+    await page.locator("#primary").click();
+    await advanceTicks(page, 4);
+    await page.keyboard.press("KeyP");
+    const state = await page.evaluate(() => window.testState);
+    await page.locator("#help").click();
+    await page.evaluate(() => { window.dispatchEvent(new Event("blur")); });
+    await page.clock.runFor(2000);
+    await page.evaluate(() => { window.dispatchEvent(new Event("focus")); });
+    expect(await page.evaluate(() => window.testState)).toEqual(state);
+    await expect(page.locator("#dialog-title")).toHaveText("Hilfe");
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#dialog-title")).toHaveText("Pause");
+    await page.locator("#main-menu").click();
+    await expect(page.locator("#continue")).toBeEnabled();
+    await page.locator("#primary").click();
+    await expect(page.locator("#dialog-title")).toHaveText("Neu beginnen?");
+    await expect(page.locator("#secondary")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await page.clock.runFor(2000);
+    expect(await page.evaluate(() => window.testState)).toEqual(state);
+    await page.locator("#continue").click();
+    await advanceTicks(page, 1);
+    await page.keyboard.press("KeyP");
+    await page.locator("#main-menu").click();
+    await page.locator("#primary").click();
+    await page.locator("#primary").click();
+    expect(await page.evaluate(() => window.testState.tick)).toBe(0);
+    expect(await page.evaluate(() => window.testState.levelId)).toBe(pack.levels[0].id);
+  });
+
+  test(`Levelauswahl über ${protocol}: 200 Zusatzhöhlen, lange Namen und sichtbarer Tastaturfokus`, async ({ page }) => {
+    const small = require("../../examples/meine-hoehlen.json");
+    const imports = Array.from({ length: 2 }, (_, p) => ({
+      ...small, id: "viele-" + p, title: "Höhlensammlung " + p,
+      levels: Array.from({ length: 100 }, (_, i) => ({ ...small.levels[0], id: "hoehle-" + i,
+        name: "Höhle " + p + "-" + i + " " + "LangerName".repeat(8) })),
+    }));
+    await page.addInitScript(({ imports, key }) => localStorage.setItem(key, JSON.stringify({
+      formatVersion: 2, importedPacks: imports, settings: { showHints: true }, progress: [], bests: [], session: null,
+    })), { imports, key: storageKey });
+    await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
+    await page.locator("#manage-packs").click();
+    await expect(page.locator("#pack-list button")).toHaveCount(207);
+    const locked = page.locator("#pack-list button").filter({ hasText: "Die grüne Kammer" });
+    await expect(locked).toBeDisabled();
+    await expect(locked).toContainText("gesperrt");
+    const last = page.locator("#pack-list button").filter({ hasText: "Höhle 1-99" });
+    await last.focus();
+    await expect(last).toBeInViewport();
+    await expect(last).toHaveCSS("outline-width", "3px");
+    expect(await page.locator("#pack-list").evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#dialog-title")).toHaveText("Höhle wechseln?");
+    await expect(page.locator("#dialog-text")).toContainText("Höhle 1-99");
+    await page.keyboard.press("Escape");
+    await expect(last).toBeFocused();
+    await expect(last).toBeInViewport();
+    await page.keyboard.press("Enter");
+    await page.locator("#primary").click();
+    await expect(page.locator("#overlay")).toBeHidden();
+    await expect(page.locator("#level-name")).toContainText("Höhle 1-99");
+  });
+}
+
+for (const profile of ["standard", "competition-pro"]) {
+  test(`Neue Menüs mit simuliertem ${profile}: Navigation, Loslasssperre und Trennung in der Hilfe`, async ({ page }) => {
+    await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
+    await page.addInitScript((profile) => {
+      window.menuPad = { index: 0, connected: true, mapping: profile === "standard" ? "standard" : "",
+        id: "USB 2A4K GamePad (Vendor: 040b Product: 6533)", axes: [0, 0],
+        buttons: Array.from({ length: profile === "standard" ? 17 : 4 }, () => ({ pressed: false, value: 0 })) };
+      window.menuPads = [window.menuPad];
+      Object.defineProperty(navigator, "getGamepads", { value: () => window.menuPads, configurable: true });
+    }, profile);
+    await page.goto(origin);
+    await expect(page.locator("#primary")).toBeEnabled();
+    async function press(action) {
+      await page.evaluate(({ action, profile }) => {
+        const index = action === "confirm" ? 0 : action === "back" ? 1 : action === "down" ? 13 : -1;
+        window.menuPad.axes = profile === "competition-pro" && action === "down" ? [0, 1] : [0, 0];
+        window.menuPad.buttons = Array.from({ length: profile === "standard" ? 17 : 4 }, (_, i) => ({
+          pressed: i === index, value: Number(i === index),
+        }));
+      }, { action, profile });
+      await page.clock.runFor(32);
+    }
+    async function choose(id) {
+      for (let i = 0; i < 12; i++) {
+        if (await page.locator(id).evaluate((node) => node === document.activeElement)) break;
+        await press(null);
+        await press("down");
+      }
+      await expect(page.locator(id)).toBeFocused();
+      await press(null);
+      await press("confirm");
+    }
+    await choose("#help");
+    await expect(page.locator("#dialog-title")).toHaveText("Hilfe");
+    await expect(page.locator("#help-controls")).toContainText(profile === "standard" ? "Gamepad" : "Competition Pro");
+    await press(null);
+    await press("down");
+    await page.clock.runFor(1000);
+    expect(await page.locator(".panel").evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    await expect(page.locator("#dialog-title")).toHaveText("Hilfe");
+    await page.evaluate(() => { window.menuPads = []; });
+    await page.clock.runFor(32);
+    await page.evaluate(() => { window.menuPads = [window.menuPad]; });
+    await page.clock.runFor(1000);
+    await expect(page.locator("#dialog-title")).toHaveText("Hilfe");
+    await press(null);
+    await press("back");
+    await expect(page.locator("#dialog-title")).toHaveText("Sturzstein");
+    await choose("#settings");
+    await choose("#toggle-hints");
+    await expect(page.locator("#input-hints")).toBeHidden();
+    await press(null);
+    await press("back");
+    await expect(page.locator("#settings")).toBeFocused();
+    await choose("#primary");
+    await expect(page.locator("#overlay")).toBeHidden();
+  });
+}
+
+test("Verspäteter Import verändert eine inzwischen neu geöffnete Levelauswahl nicht", async ({ page }) => {
+  await page.goto(origin);
+  await page.locator("#manage-packs").click();
+  await page.evaluate(() => {
+    const read = File.prototype.text;
+    File.prototype.text = function () {
+      return new Promise((resolve) => {
+        window.finishImport = async () => resolve(await read.call(this));
+      });
+    };
+  });
+  await page.locator("#pack-file").setInputFiles(path.join(root, "examples/meine-hoehlen.json"));
+  await page.locator("#secondary").click();
+  await page.locator("#manage-packs").click();
+  await page.evaluate(() => window.finishImport());
+  await expect(page.locator("#dialog-title")).toHaveText("Levelauswahl");
+  await expect(page.locator("#pack-list")).not.toContainText("Meine Höhlen");
 });

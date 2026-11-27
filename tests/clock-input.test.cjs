@@ -72,3 +72,17 @@ test("Aktionskombination, nicht wiederholte Menüaktionen und ungestörte Eingab
   assert.equal(typing.prevented, undefined);
   assert.deepEqual(commands, ["pause"]);
 });
+
+test("Native Menüknöpfe werden bei gehaltenem Enter oder Leertaste nicht wiederholt ausgelöst", () => {
+  const { handlers, commands, event } = keyboard();
+  const target = { closest: (selector) => selector === "button, a" };
+  for (const code of ["Enter", "Space"]) {
+    const initial = event(code, { target });
+    handlers.keydown(initial);
+    assert.equal(initial.prevented, undefined);
+    const repeated = event(code, { target, repeat: true });
+    handlers.keydown(repeated);
+    assert.equal(repeated.prevented, true);
+  }
+  assert.deepEqual(commands, []);
+});
