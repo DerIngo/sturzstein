@@ -1,7 +1,10 @@
 # Sturzstein: Issue-Plan
 
 Grundlage: `PROMPT.md`. Dieser Plan zerlegt den vollständigen Auftrag in 16 umsetzbare Issues.
-Die Kennungen S01 bis S16 sind Plan-IDs, noch keine GitHub-Issue-Nummern.
+Die Kennungen S01 bis S16 sind Plan-IDs. Die zugehörigen GitHub-Issues sind
+[#1 bis #16](https://github.com/DerIngo/sturzstein/issues), in derselben Reihenfolge.
+Labels, die fünf Meilensteine und native Blockierungsabhängigkeiten sind eingerichtet.
+Der aktuelle Bearbeitungsstand wird ausschließlich in den Issues gepflegt.
 Der Plan reduziert den geforderten Umfang nicht; frühe Zwischenstände enthalten bewusst erst Teilfunktionen.
 
 ## Arbeitsweise und gemeinsame Abnahme
