@@ -15,7 +15,8 @@ Seit S09 sind Glutkäfer, Kristallfalter und verkettete 3×3-Explosionen integri
 Seit S10 wachsen Amöben seedgesteuert, und Umwandlungswände tauschen fallende Felsen und Edelsteine.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
-Pack-Import und vollständige Kampagne folgen in späteren Arbeitspaketen.
+Seit S11 lassen sich native JSON-Levelpacks importieren, auswählen, ersetzen und entfernen.
+Die vollständige Kampagne folgt in einem späteren Arbeitspaket.
 
 ## Start
 
@@ -130,6 +131,8 @@ erscheint **Die grüne Kammer** beim Durchwechseln mit „Nächste Höhle“, na
   Steige ganz rechts hinab und sammle aus dem unteren Gang den Edelstein mit Aktion + oben.
   Der Ausgang liegt unten links.
 
+Der Nutzer hat S10 mit „Das funktioniert soweit ich testen konnte. weiter“ abgenommen.
+
 ## Rückspulen
 
 Z/U, am Standard-Gamepad B oder am Competition Pro den großen rechten Knopf halten.
@@ -242,7 +245,12 @@ Visuelle Replay-Wiedergabe im Spiel ist nicht Teil dieses Schritts.
 Das native Format und die bewusst nicht implementierten Fremdformat-Importer sind in
 [docs/level-format.md](docs/level-format.md) beschrieben.
 Neue native JSON-Packs unter `levels/` ablegen, dann `npm run bundle` und die Prüfungen ausführen.
-Der spätere Import im laufenden Spiel ist Teil von S11, aktuell noch nicht vorhanden.
+Im Spiel öffnet **Levelpacks …** die Sammlung. **Levelpack importieren …** liest eine lokale
+JSON-Datei. Als kleine Vorlage dient [examples/meine-hoehlen.json](examples/meine-hoehlen.json).
+Speichere sie als Datei und importiere sie. Der Probegang ist mit zwei Schritten rechts lösbar.
+Zusatzhöhlen sind direkt anwählbar und als „Lösbarkeit ungeprüft“ gekennzeichnet.
+Eine gleiche Pack-ID verlangt bestätigtes Ersetzen. Entfernen benennt die betroffenen lokalen Daten
+und verlangt ebenfalls Bestätigung. Speicherfehler kennzeichnen Änderungen als temporär.
 
 [Architektur](docs/architecture.md), [Regeln](docs/rules.md) und
 [Entscheidungen](docs/decisions/) dokumentieren die technischen Verträge.

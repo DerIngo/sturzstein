@@ -58,8 +58,8 @@ die Aktivierungszeit ihres Levels. Eine Umwandlungswand beginnt bereit für den 
 | `magicWallTicks` | 1–36.000, Standard 200 (20 Sekunden) |
 
 Grenzen halten Parsing, Rasterarbeit und Snapshots überschaubar. Gesamtzellengrenze und Dateilimit
-verhindern, dass 100 maximale Höhlen ungebremst Speicher belegen. Die spätere Sammlung erhält in S11
-zusätzlich ein dokumentiertes Gesamtlimit unter Berücksichtigung des lokalen Speicherbudgets.
+verhindern, dass 100 maximale Höhlen ungebremst Speicher belegen. Die Zusatzpacksammlung ist seit S11 auf 20 Packs, 131.072 Zellen und 2 MiB
+normalisierte UTF-8-Daten begrenzt, damit Platz für das Spielprofil bleibt.
 Parameter werden normalisiert; explizite ungültige Werte werden niemals durch Standardwerte ersetzt.
 
 ## Identität und Kompatibilität

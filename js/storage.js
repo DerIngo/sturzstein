@@ -2,6 +2,7 @@
   "use strict";
   const Simulation = root.Sturzstein?.Simulation ?? require("./simulation.js");
   const Replay = root.Sturzstein?.Replay ?? require("./replay.js");
+  const Packs = root.Sturzstein?.Packs ?? require("./packs.js");
   const KEY = "sturzstein.save";
   const limits = Object.freeze({ bytes: 8 * 1024 * 1024, entries: 10000 });
   const fresh = () => ({ formatVersion: 1, settings: { showHints: true }, progress: [], bests: [], session: null });
@@ -21,8 +22,8 @@
     if (typeof value !== "string" || value.length > 64 || !/^[a-z0-9][a-z0-9-]*$/.test(value)) fail(path, "Ungültige ID.");
   }
   function validateData(value) {
-    object(value, "Profil", ["formatVersion", "settings", "progress", "bests", "session"]);
-    if (value.formatVersion !== 1) fail("formatVersion", "Nicht unterstützte Version.");
+    object(value, "Profil", ["formatVersion", "settings", "progress", "bests", "session", ...(value?.formatVersion === 2 ? ["importedPacks"] : [])]);
+    if (![1, 2].includes(value.formatVersion)) fail("formatVersion", "Nicht unterstützte Version.");
     object(value.settings, "settings", ["showHints"]);
     boolean(value.settings.showHints, "settings.showHints");
     for (const name of ["progress", "bests"]) {
@@ -142,7 +143,7 @@
     }
     return { pack, state: structuredClone(state), recorder };
   }
-  function syncProgress(data, pack) {
+  function syncProgress(data, pack, campaign = true) {
     let slots = 3;
     for (const level of pack.levels) {
       let entry = data.progress.find((item) => item.packId === pack.id && item.levelId === level.id);
@@ -151,7 +152,7 @@
         data.progress.push(entry);
       }
       if (entry.solved) entry.unlocked = true;
-      else if (slots-- > 0) entry.unlocked = true;
+      else if (!campaign || slots-- > 0) entry.unlocked = true;
     }
   }
   function bestFor(data, pack, level, usedRewind) {
@@ -162,6 +163,8 @@
   class SaveStore {
     constructor(access, packs, onStatus) {
       this.access = access;
+      this.builtins = packs;
+      this.packs = [...packs];
       this.onStatus = onStatus;
       this.data = fresh();
       this.restored = null;
@@ -176,14 +179,15 @@
         if (text !== null) {
           if (text.length > limits.bytes || new TextEncoder().encode(text).length > limits.bytes) fail("Datei", "Größer als 8 MiB.");
           this.data = validateData(JSON.parse(text));
-          if (this.data.session !== null) this.restored = restoreSession(this.data.session, packs);
+          this.packs = [...packs, ...Packs.validateCollection(this.data.importedPacks ?? [], packs)];
+          if (this.data.session !== null) this.restored = restoreSession(this.data.session, this.packs);
         }
         this.report(this.restored ? "Partie geladen. Erst bewusst fortsetzen; Offlinezeit wird nicht abgezogen." : "Lokaler Speicher bereit. Gespeichert wird nur in diesem Browser.");
       } catch (error) {
         this.blocked = true;
         this.report(`Speicher nicht geladen (${error.name}): ${error.message} Browserdaten bleiben unverändert; vorerst nur temporäres Spielen.`, error);
       }
-      for (const pack of packs) syncProgress(this.data, pack);
+      for (const pack of this.packs) syncProgress(this.data, pack, this.builtins.some((p) => p.id === pack.id));
     }
     report(message, error) {
       if (message === this.message) return;
@@ -215,9 +219,9 @@
     }
     capture(pack, state, recorder) {
       if (state.status === "won") {
-        syncProgress(this.data, pack);
+        syncProgress(this.data, pack, this.builtins.some((p) => p.id === pack.id));
         this.data.progress.find((entry) => entry.packId === pack.id && entry.levelId === state.levelId).solved = true;
-        syncProgress(this.data, pack);
+        syncProgress(this.data, pack, this.builtins.some((p) => p.id === pack.id));
         const level = pack.levels.find((entry) => entry.id === state.levelId);
         const best = bestFor(this.data, pack, level, recorder.replay.usedRewind);
         if (!best) this.data.bests.push({
@@ -234,14 +238,47 @@
       }
       return this.persist();
     }
+    importPack(value) {
+      const pack = Packs.validateCollection([value], [])[0];
+      if (this.builtins.some((entry) => entry.id === pack.id)) throw new Error("Integrierte Packs sind geschützt.");
+      const previous = this.packs.find((entry) => entry.id === pack.id);
+      if (previous) Packs.replacement(previous, pack);
+      const imported = Packs.validateCollection([
+        ...(this.data.importedPacks ?? []).filter((entry) => entry.id !== pack.id), pack,
+      ], this.builtins);
+      if (previous) {
+        const unchanged = (id) => Packs.compatible(previous.levels.find((l) => l.id === id), pack.levels.find((l) => l.id === id));
+        this.data.progress = this.data.progress.filter((entry) => entry.packId !== pack.id || unchanged(entry.levelId));
+        this.data.bests = this.data.bests.filter((entry) => entry.packId !== pack.id || unchanged(entry.levelId));
+        if (this.data.session?.state.packId === pack.id && !unchanged(this.data.session.state.levelId)) this.data.session = null;
+      }
+      this.data.formatVersion = 2;
+      this.data.importedPacks = imported;
+      this.packs = [...this.builtins, ...imported];
+      syncProgress(this.data, pack, false);
+      return this.persist();
+    }
+    removePack(id) {
+      if (this.builtins.some((entry) => entry.id === id)) throw new Error("Integrierte Packs sind geschützt.");
+      this.data.formatVersion = 2;
+      this.data.importedPacks = (this.data.importedPacks ?? []).filter((entry) => entry.id !== id);
+      this.packs = this.packs.filter((entry) => entry.id !== id);
+      this.data.progress = this.data.progress.filter((entry) => entry.packId !== id);
+      this.data.bests = this.data.bests.filter((entry) => entry.packId !== id);
+      if (this.data.session?.state.packId === id) this.data.session = null;
+      return this.persist();
+    }
     reset() {
-      const previous = this.data.session;
+      const previous = structuredClone(this.data);
       this.data.session = null;
+      if (this.data.formatVersion === 2) {
+        this.data.importedPacks = this.packs.filter((pack) => !this.builtins.some((entry) => entry.id === pack.id));
+      }
       if (this.persist(true)) {
         this.restored = null;
         return true;
       }
-      this.data.session = previous;
+      this.data = previous;
       return false;
     }
   }

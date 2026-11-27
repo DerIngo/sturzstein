@@ -39,7 +39,10 @@ Das ausgelieferte Spiel startet ohne Installation oder Build durch Öffnen von `
 Ein lokaler Webserver ist eine Alternative, keine Voraussetzung.
 Die mitgelieferten JSON-Quelldaten werden durch ein Entwicklungswerkzeug in ein klassisches
 Skript-Datenbundle überführt. Das Bundle wird mitgeliefert und nicht separat von Hand gepflegt.
-Zusätzliche Packs werden ab S11 als Daten über Dateiauswahl und Browser File API importiert.
+Zusätzliche Packs werden seit S11 als Daten über Dateiauswahl und Browser File API importiert.
+`js/packs.js` prüft Sammlungsgrenzen und Revisionskompatibilität. `SaveStore` speichert
+Zusatzpacks und zugehörige Profildaten gemeinsam. Die scrollbare Packverwaltung bietet direkten
+Zugriff auf Zusatzhöhlen. Metadaten werden ausschließlich als Text angezeigt.
 Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-System vorgesehen.
 
 ## Module und Schnittstellen

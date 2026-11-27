@@ -45,3 +45,7 @@ kbd { color: #e6dcbf; border-bottom: 1px solid #6f7a7f; padding: 0 3px; font: in
   .toolbar { flex-direction: column; align-items: stretch; }
   .panel { padding: 12px; }
 }
+
+#pack-list { max-height: 35vh; overflow-y: auto; width: 100%; }
+#pack-list button { display: block; width: 100%; margin-bottom: 0.4rem; }
+.panel { max-height: 90vh; overflow-y: auto; }

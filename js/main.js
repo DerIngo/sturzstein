@@ -28,15 +28,18 @@
   let started = false;
   let confirmation = "restart";
   let pendingLevel = null;
+  let pendingPack = null;
+  let collectionAction = null;
+  let collectionReturn = "start";
 
   function menuButtons() {
-    return [primary, secondary, replayExport, toggleHints, nextLevel, storageReset].filter((button) => !button.hidden && !button.disabled);
+    return [...overlay.querySelectorAll("button")].filter((button) => !button.hidden && !button.disabled && !button.closest("[hidden]"));
   }
   function nextPlayableLevel() {
     const current = pack.levels.findIndex((entry) => entry.id === level.id);
     for (let offset = 1; offset < pack.levels.length; offset++) {
       const candidate = pack.levels[(current + offset) % pack.levels.length];
-      if (saveStore.data.progress.some((entry) => entry.packId === pack.id && entry.levelId === candidate.id && entry.unlocked)) return candidate;
+      if (!saveStore.builtins.some((p) => p.id === pack.id) || saveStore.data.progress.some((entry) => entry.packId === pack.id && entry.levelId === candidate.id && entry.unlocked)) return candidate;
     }
     return null;
   }
@@ -72,19 +75,30 @@
     get("pause").textContent = next === "paused" ? "Fortsetzen" : "Pause";
     get("restart").disabled = ["loading", "start", "resume", "error", "confirm", "rewinding"].includes(next);
     primary.disabled = next === "error" || next === "loading";
-    secondary.hidden = next !== "confirm" && next !== "resume";
+    primary.hidden = next === "packs";
+    get("manage-packs").hidden = !["start", "resume", "paused", "lost", "won"].includes(next);
+    get("import-pack").hidden = next !== "packs";
+    get("pack-list").hidden = next !== "packs";
+    secondary.hidden = !["confirm", "resume", "packs"].includes(next);
     secondary.textContent = next === "resume" ? "Neu beginnen …" : "Zurück";
     toggleHints.hidden = !["start", "resume", "paused", "lost", "won"].includes(next);
     replayExport.hidden = !["paused", "won", "lost"].includes(next);
     replayExport.disabled = !recorder?.ticks;
     const dialogs = {
-      start: ["Ein Funkeln im Dunkeln", level?.description || "", "Höhle betreten"],
+      start: [level?.name || "Sturzstein", level?.description || "", "Höhle betreten"],
       resume: ["Partie fortsetzen?", state?.status === "lost"
         ? "Der gespeicherte Versuch war bereits beendet. Ohne gespeicherten Rückspulverlauf kannst du ihn nur neu starten oder als Replay exportieren."
         : "Dein letzter Zustand ist geladen. Zeit vergeht erst nach deiner Bestätigung. Der Rückspulverlauf beginnt hier neu.",
         state?.status === "lost" ? "Letzten Versuch anzeigen" : "Gespeicherte Partie fortsetzen"],
       paused: ["Pause", message || "Die Höhle wartet. Zeit und Physik sind angehalten.", "Fortsetzen"],
-      confirm: confirmation === "level"
+      packs: ["Levelpacks", "Wähle eine Höhle oder importiere eine native JSON-Datei.", ""],
+      confirm: confirmation === "collection"
+        ? [collectionAction === "remove" ? "Levelpack entfernen?" : "Levelpack übernehmen?",
+          collectionAction === "remove"
+            ? `${pendingPack.title}: Pack, Fortschritt, Bestwerte und eine zugehörige gespeicherte Partie werden entfernt.`
+            : `${pendingPack.title} · Autor ${pendingPack.author} · Revision ${pendingPack.revision}. ${pendingPack.source} · ${pendingPack.license}. Lösbarkeit ungeprüft. Eine gleiche Pack-ID wird ersetzt. Fortschritte und Partien geänderter Level werden verworfen.`,
+          collectionAction === "remove" ? "Entfernen" : "Übernehmen"]
+        : confirmation === "level"
         ? ["Höhle wechseln?", `${pendingLevel.name}: ${pendingLevel.description} Eine vorhandene Partie wird ersetzt; Fortschritt und Bestwerte bleiben erhalten.`, "Höhle betreten"]
         : confirmation === "storage"
         ? ["Speicherdaten ersetzen?", "Vorhandene Browserdaten werden durch die Daten dieser Sitzung ersetzt. Beschädigte oder inkompatible Partien gehen verloren. Nicht lesbare Bestwerte und Einstellungen können nicht übernommen werden.", "Daten ersetzen"]
@@ -106,6 +120,8 @@
       canvas.focus();
     } else if (next === "confirm") {
       secondary.focus();
+    } else if (next === "packs") {
+      get("import-pack").focus();
     } else if (!primary.disabled) {
       primary.focus();
     }
@@ -137,6 +153,35 @@
     show("playing");
   }
   function confirm() {
+    if (screen === "confirm" && confirmation === "collection") {
+      try {
+        // Die angehaltene Partie wurde bereits beim Öffnen der Verwaltung gesichert.
+        const activeAffected = pendingPack.id === pack.id;
+        const persisted = collectionAction === "remove"
+          ? saveStore.removePack(pendingPack.id) : saveStore.importPack(pendingPack);
+        if (activeAffected) {
+          const updated = saveStore.packs.find((p) => p.id === pack.id);
+          const compatible = updated && app.Packs.compatible(level, updated.levels.find((l) => l.id === level.id));
+          if (compatible) { pack = updated; level = pack.levels.find((l) => l.id === level.id); }
+          else {
+            pack = saveStore.packs[0];
+            level = pack.levels[0];
+            state = app.Simulation.createState(pack, level.id);
+            previous = structuredClone(state);
+            started = false;
+            recorder = null;
+            history = null;
+            renderer.reset();
+            collectionReturn = "start";
+          }
+        }
+        renderPacks();
+        show("packs");
+        get("dialog-text").textContent = persisted ? "Sammlung lokal gespeichert."
+          : "Änderung nur temporär nutzbar. Der bisherige Speicher bleibt erhalten. " + saveStore.message;
+      } catch (error) { show("packs"); get("dialog-text").textContent = error.message; }
+      return;
+    }
     if (screen === "resume") {
       started = true;
       show(state.status === "playing" ? "playing" : state.status);
@@ -147,7 +192,10 @@
       show(beforeConfirm);
       return;
     }
-    if (screen === "confirm" && confirmation === "level") level = pendingLevel;
+    if (screen === "confirm" && confirmation === "level") {
+      if (pendingPack) pack = pendingPack;
+      level = pendingLevel;
+    }
     if (screen === "start" || screen === "won" || screen === "lost" || screen === "confirm") restart();
     else if (screen === "paused") show("playing");
   }
@@ -162,7 +210,7 @@
     }
     if (action === "confirm") {
       if (!overlay.hidden && menuButtons().includes(document.activeElement)) document.activeElement.click();
-      else confirm();
+      else if (screen !== "packs") confirm();
       return;
     }
     if (action === "rewind") {
@@ -182,6 +230,8 @@
       show("confirm");
     } else if (action === "restart" && ["won", "lost"].includes(screen)) {
       restart();
+    } else if (action === "escape" && screen === "packs") {
+      show(collectionReturn);
     } else if (action === "escape" && screen === "confirm") {
       show(beforeConfirm);
     } else if (action === "escape" && ["won", "lost"].includes(screen)) {
@@ -226,7 +276,7 @@
       beforeConfirm = screen;
       confirmation = "restart";
       show("confirm");
-    } else show(beforeConfirm);
+    } else show(screen === "packs" ? collectionReturn : beforeConfirm);
   });
   toggleHints.addEventListener("click", () => {
     saveStore.data.settings.showHints = !saveStore.data.settings.showHints;
@@ -234,6 +284,7 @@
     updateProfile();
   });
   nextLevel.addEventListener("click", () => {
+    pendingPack = pack;
     pendingLevel = nextPlayableLevel();
     if (!pendingLevel) throw new Error("Keine weitere freigeschaltete Höhle verfügbar.");
     beforeConfirm = screen;
@@ -273,6 +324,66 @@
     const buttons = menuButtons();
     const index = buttons.indexOf(document.activeElement);
     buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus();
+  });
+
+  function collectionConfirm(action, candidate) {
+    pendingPack = candidate;
+    collectionAction = action;
+    beforeConfirm = "packs";
+    confirmation = "collection";
+    show("confirm");
+  }
+  function renderPacks() {
+    const list = get("pack-list");
+    list.replaceChildren();
+    for (const candidate of saveStore.packs) {
+      const title = document.createElement("p");
+      title.textContent = candidate.title + " · " + candidate.author;
+      list.append(title);
+      for (const entry of candidate.levels) {
+        const unlocked = !saveStore.builtins.some((p) => p.id === candidate.id)
+          || saveStore.data.progress.some((p) => p.packId === candidate.id && p.levelId === entry.id && p.unlocked);
+        const button = document.createElement("button");
+        button.textContent = entry.name + (saveStore.builtins.some((p) => p.id === candidate.id) ? "" : " · Lösbarkeit ungeprüft");
+        button.disabled = !unlocked;
+        button.addEventListener("click", () => {
+          pendingPack = candidate;
+          pendingLevel = entry;
+          beforeConfirm = "packs";
+          confirmation = "level";
+          show("confirm");
+        });
+        list.append(button);
+      }
+      if (!saveStore.builtins.some((p) => p.id === candidate.id)) {
+        const remove = document.createElement("button");
+        remove.textContent = candidate.title + " entfernen …";
+        remove.addEventListener("click", () => collectionConfirm("remove", candidate));
+        list.append(remove);
+      }
+    }
+  }
+  get("manage-packs").addEventListener("click", () => {
+    collectionReturn = screen;
+    saveCurrent();
+    renderPacks();
+    show("packs");
+  });
+  get("import-pack").addEventListener("click", () => get("pack-file").click());
+  get("pack-file").addEventListener("change", async () => {
+    const file = get("pack-file").files[0];
+    get("pack-file").value = "";
+    if (!file) return;
+    try {
+      if (file.size > app.Levels.limits.bytes) throw new Error(file.name + ": Datei überschreitet 1 MiB.");
+      const candidate = app.Levels.parsePack(await file.text(), file.name);
+      if (screen !== "packs") return;
+      if (saveStore.builtins.some((p) => p.id === candidate.id)) throw new Error(file.name + ": Integriertes Pack ist geschützt.");
+      const previous = saveStore.packs.find((p) => p.id === candidate.id);
+      if (previous) app.Packs.replacement(previous, candidate);
+      app.Packs.validateCollection([...saveStore.packs.filter((p) => !saveStore.builtins.some((b) => b.id === p.id) && p.id !== candidate.id), candidate], saveStore.builtins);
+      collectionConfirm("import", candidate);
+    } catch (error) { if (screen === "packs") get("dialog-text").textContent = file.name + ": " + error.message; }
   });
 
   async function boot() {

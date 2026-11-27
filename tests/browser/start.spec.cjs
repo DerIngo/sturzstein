@@ -751,3 +751,68 @@ test("Canvas skaliert auf Pixeldichte und zeichnet große Höhlen ohne Zustands�
   expect(Number.isInteger(result.scale)).toBe(true);
   expect(result.smoothing).toBe(false);
 });
+
+for (const protocol of ["file", "http"]) {
+  test(`Zusatzpacks über ${protocol}: Import, Neuladen, Ersetzen und Entfernen`, async ({ page }) => {
+    const custom = structuredClone(pack);
+    custom.id = "eigenes-pack";
+    custom.title = "<img src=x onerror=alert(1)>";
+    await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
+    await page.locator("#manage-packs").click();
+    async function upload(value) {
+      await page.locator("#pack-file").setInputFiles({
+        name: "eigenes.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(value)),
+      });
+    }
+    await upload(pack);
+    await expect(page.locator("#dialog-text")).toContainText("geschützt");
+    await upload(custom);
+    await expect(page.locator("#dialog-title")).toHaveText("Levelpack übernehmen?");
+    await page.locator("#secondary").click();
+    await expect(page.locator("#pack-list")).not.toContainText(custom.title);
+    await upload(custom);
+    await page.locator("#primary").click();
+    await expect(page.locator("#dialog-text")).toContainText("lokal gespeichert");
+    await expect(page.locator("#pack-list img")).toHaveCount(0);
+    await page.reload();
+    await page.locator("#manage-packs").click();
+    await expect(page.locator("#pack-list")).toContainText(custom.title);
+    await page.getByRole("button", { name: "Die drei Schächte · Lösbarkeit ungeprüft", exact: true }).click();
+    await page.locator("#primary").click();
+    await expect(page.locator("#level-name")).toContainText("Die drei Schächte");
+    await page.locator("#pause").click();
+    await page.reload();
+    await expect(page.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+    await expect(page.locator("#level-name")).toContainText("Die drei Schächte");
+    await page.locator("#manage-packs").click();
+    custom.revision++;
+    custom.title = "Überarbeitet";
+    await upload(custom);
+    await page.locator("#primary").click();
+    await page.getByRole("button", { name: "Überarbeitet entfernen …", exact: true }).click();
+    await expect(page.locator("#dialog-text")).toContainText("Bestwerte");
+    await page.locator("#secondary").click();
+    await expect(page.locator("#pack-list")).toContainText("Überarbeitet");
+    await page.getByRole("button", { name: "Überarbeitet entfernen …", exact: true }).click();
+    await page.locator("#primary").click();
+    await page.reload();
+    await expect(page.locator("#dialog-title")).toHaveText("Ein Funkeln im Dunkeln");
+    await page.locator("#manage-packs").click();
+    await expect(page.locator("#pack-list")).not.toContainText("Überarbeitet");
+  });
+}
+
+test("Import bei voller Speicherquote bleibt sichtbar temporär spielbar", async ({ page }) => {
+  await page.addInitScript(() => {
+    Storage.prototype.setItem = () => { throw new DOMException("Test", "QuotaExceededError"); };
+  });
+  await page.goto(origin);
+  await page.locator("#manage-packs").click();
+  await page.locator("#pack-file").setInputFiles(path.join(root, "examples/meine-hoehlen.json"));
+  await page.locator("#primary").click();
+  await expect(page.locator("#dialog-text")).toContainText("temporär");
+  await page.getByRole("button", { name: "Der Probegang · Lösbarkeit ungeprüft", exact: true }).click();
+  await page.locator("#primary").click();
+  await expect(page.locator("#overlay")).toBeHidden();
+  await expect(page.locator("#storage-status")).toContainText("QuotaExceededError");
+});

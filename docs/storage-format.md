@@ -3,18 +3,19 @@
 ## Umfang und Ablage
 
 `js/storage.js` speichert unter dem LocalStorage-Schlüssel `sturzstein.save` ein
-UTF-8-JSON-Dokument mit `formatVersion: 1`. Es enthält ausschließlich lokale Spieldaten;
+UTF-8-JSON-Dokument mit `formatVersion: 1` oder seit S11 mit `formatVersion: 2`. Es enthält ausschließlich lokale Spieldaten;
 es gibt keinen Serverabgleich und keinen Upload. Browser, Browserprofil und Adresse bestimmen
 den Speicherbereich. GitHub Pages, ein lokaler HTTP-Server und `file://` teilen ihn nicht automatisch.
 Das Verhalten von LocalStorage bei `file://` ist browserabhängig; Einschränkungen werden angezeigt.
 
 | Feld | Inhalt |
 |---|---|
-| `formatVersion` | Speicherformat, derzeit ausschließlich 1 |
+| `formatVersion` | Speicherformat 1 oder 2 |
 | `settings` | `{ "showHints": true }`; boolesche Anzeige der Bedienhinweise |
 | `progress` | Einträge mit `packId`, `levelId`, `unlocked`, `solved` |
 | `bests` | Einträge mit `packId`, `levelId`, `levelRevision`, `ruleVersion`, `seed`, `usedRewind`, `score`, `ticks` |
 | `session` | `null` oder `{ state, replay }` für die zuletzt gespeicherte Partie |
+| `importedPacks` | Ausschließlich in Format 2, Liste normalisierter Zusatzpacks |
 
 Alle Felder sind verpflichtend, unbekannte Felder werden abgewiesen.
 IDs folgen dem Levelpack-Format. Die Listen dürfen keine doppelten Identitäten enthalten.
@@ -127,3 +128,25 @@ bewusste Wiederaufnahme ohne Offlinezeitabzug, Replayfortsetzung, Einstellungen 
 Speichern/Fortsetzen wurde für S08 vom Nutzer unter Windows 11 / Edge bestätigt.
 Die Erweiterung um laufende Explosionen ist automatisiert geprüft; der S09-Zwischenstand wurde
 am 27. November 2026 vom Nutzer abgenommen.
+
+
+## Zusatzpacks seit S11
+
+Profile ohne Zusatzpackverwaltung werden weiterhin als Format 1 gelesen und geschrieben.
+Der erste Import wechselt zu Format 2 mit dem Pflichtfeld `importedPacks`.
+Entfernen des letzten Zusatzpacks behält Version 2 und eine leere Liste.
+Diese Erweiterung ist für alte Programme inkompatibel und wird dort als unbekannte Version
+sichtbar abgewiesen. Der neue Leser unterstützt beide Versionen ohne Verlust alter Einträge.
+
+Die normalisierten Packs und das Profil werden unter demselben Schlüssel in einem Schreibvorgang
+gesichert. Alle Packs werden vor Wiederaufnahme einer Partie vollständig validiert. Doppelte IDs,
+integrierte Pack-IDs und überschrittene Sammlungsgrenzen sperren automatisches Überschreiben.
+Die Sammlung darf höchstens 20 Zusatzpacks, 131.072 Zellen und 2 MiB UTF-8 enthalten.
+Das lässt innerhalb der bestehenden Profilgrenze Raum für Partie, Replay und Bestwerte.
+Die tatsächliche Browserquote kann geringer sein.
+
+Ersetzen verlangt eine Bestätigung, sinkende Revisionen werden abgewiesen.
+Inhaltsänderungen bei gleicher Levelrevision sind ungültig. Unveränderte Level behalten Fortschritt,
+Bestwerte und Partie, geänderte oder entfernte Level verlieren ihre zugehörigen Profildaten.
+Entfernen eines Packs entfernt nach Bestätigung alle zugehörigen Profildaten.
+Bei Schreibfehlern bleibt die neue Sammlung temporär nutzbar, die vorherigen Browserdaten bleiben erhalten.

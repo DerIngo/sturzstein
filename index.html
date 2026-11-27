@@ -11,7 +11,7 @@
   <main>
     <header>
       <div><p class="eyebrow">Ein Funkeln in der Tiefe</p><h1>STURZSTEIN</h1></div>
-      <span class="tag">FÜNF HÖHLEN · S10</span>
+      <span class="tag">LEVELPACKS · S11</span>
     </header>
     <section class="hud" aria-label="Spielstand">
       <span class="level" id="level-name"></span>
@@ -32,6 +32,10 @@
             <button type="button" id="replay-export" hidden>Replay herunterladen</button>
             <button type="button" id="toggle-hints" hidden>Bedienhinweise: an</button>
             <button type="button" id="next-level" hidden>Nächste Höhle …</button>
+            <button type="button" id="manage-packs" hidden>Levelpacks …</button>
+            <button type="button" id="import-pack" hidden>Levelpack importieren …</button>
+            <input type="file" id="pack-file" accept=".json,application/json" hidden>
+            <div id="pack-list" hidden></div>
             <button type="button" id="storage-reset" hidden>Speicherdaten ersetzen …</button>
           </div>
         </section>
@@ -63,6 +67,7 @@
   <script src="js/simulation.js"></script>
   <script src="js/replay.js"></script>
   <script src="js/rewind.js"></script>
+  <script src="js/packs.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/clock.js"></script>
   <script src="js/gamepad.js"></script>

@@ -1,0 +1,31 @@
+{
+  "formatVersion": 1,
+  "id": "meine-hoehlen",
+  "title": "Meine Höhlen",
+  "author": "Sturzstein-Projekt",
+  "revision": 1,
+  "source": "Eigene, für Sturzstein entworfene Höhlen.",
+  "license": "Eigener Projektinhalt; keine Fremdlevel oder Originalassets.",
+  "levels": [
+    {
+      "id": "probegang",
+      "revision": 1,
+      "ruleVersion": 1,
+      "name": "Der Probegang",
+      "description": "Gehe zwei Schritte nach rechts zum Ausgang.",
+      "difficulty": 1,
+      "width": 5,
+      "height": 5,
+      "timeLimit": 120,
+      "quota": 0,
+      "seed": 137,
+      "map": [
+        "#####",
+        "#@ X#",
+        "#...#",
+        "#...#",
+        "#####"
+      ]
+    }
+  ]
+}
