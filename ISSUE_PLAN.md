@@ -16,7 +16,9 @@ Der Plan reduziert den geforderten Umfang nicht; frühe Zwischenstände enthalte
 - Pro Issue: passende automatisierte Prüfungen, ein nachvollziehbarer manueller Prüfschritt bei UI-Änderungen
   und ein lokal vorführbarer Stand. Nicht ausgeführte Browser-/Hardwareprüfungen werden offen ausgewiesen.
 - Der Nutzer prüft spielbare Zwischenstände lokal. Für `DerIngo/sturzstein` sind Issue-Anlage,
-  Issue-Kommentare sowie Commit und Push vorab erlaubt; weitere schreibende GitHub-Aktionen benötigen Zustimmung.
+  Kommentare und Pflege einschließlich Abhängigkeiten und Abschluss bei erfüllter Abnahme,
+  Labels, die fünf Meilensteine sowie Commit und Push vorab erlaubt.
+  Weitere schreibende GitHub-Aktionen benötigen Zustimmung.
   Maßgeblich für den genauen Freigabeumfang ist `.github/copilot-instructions.md`.
 - Keine externen Laufzeitabhängigkeiten, keine fremden Originalassets oder ungeklärten Code-/Levelübernahmen.
   Oberfläche und Dokumentation sind deutsch; Name und visuelle Identität bleiben eigenständig.
@@ -395,8 +397,8 @@ gezielter Versuch mit einem zusätzlichen eigenen Pack ohne Quellcodeänderung.
 
 **Prüfung:** Zusammenhängender Ablauf vom frischen Start über Kampagne, Rückspulen und Fortsetzen
 bis zum Import eines zusätzlichen Packs; abschließende lokale Nutzerabnahme.
-Die projektspezifische Commit-/Push-Freigabe gilt weiterhin. Ein Release oder das Schließen des Issues
-benötigt eine zusätzliche Freigabe gemäß `.github/copilot-instructions.md`.
+Die projektspezifische Commit-/Push-Freigabe gilt weiterhin. Das Issue darf bei erfüllter Abnahme
+geschlossen werden; ein Release benötigt eine zusätzliche Freigabe gemäß `.github/copilot-instructions.md`.
 
 ## Zuordnung der Prompt-Anforderungen
 

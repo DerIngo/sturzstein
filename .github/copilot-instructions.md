@@ -9,12 +9,19 @@ Der Nutzer hat am 27. November 2026 für dieses Projekt ausdrücklich erlaubt:
 
 - Issues selbstständig anlegen und kommentieren.
 - Änderungen selbstständig committen und pushen.
+- Issues pflegen: Titel/Beschreibungen und Abhängigkeiten aktualisieren, wieder öffnen und
+  bei erfüllten Abnahmekriterien schließen. Ausstehende Nutzerabnahmen bleiben erforderlich.
+- Labels anlegen, bearbeiten und zuweisen; vorhandene Labels nicht ungefragt löschen.
+- Die fünf geplanten Meilensteine M1 bis M5 anlegen und verwalten sowie Issues zuordnen.
+  Keine Termine erfinden.
 
 Alle weiteren schreibenden GitHub-Aktionen benötigen vorherige Zustimmung, sofern sie nicht
-später ausdrücklich vorab freigegeben werden. Dazu gehören insbesondere Issue-Änderungen und
-Schließen, Labels, Milestones, Projects, Pull Requests und Merges, Actions-Konfiguration,
+später ausdrücklich vorab freigegeben werden. Dazu gehören insbesondere
+Projects, Pull Requests und Merges, Actions-Konfiguration,
 Pages, Releases sowie Repository-Einstellungen. Nur lesende Bestandsprüfungen sind davon nicht betroffen.
 Keine destruktiven Aktionen oder History-Umschreibungen aus der Commit-/Push-Freigabe ableiten.
+Issue-Löschungen, Repository-Löschung/-Übertragung, Änderungen an Sichtbarkeit, Zugriffsrechten,
+Secrets oder Schutzregeln sowie kostenpflichtige Dienste sind nicht vorab freigegeben.
 Weitere Freigaben hier mit genauem Umfang dokumentieren; keine globale Nutzerfreigabe daraus machen.
 
 Commit-Nachrichten enthalten keinen Hinweis auf KI-Mitarbeit und keinen Co-authored-by-Trailer.
