@@ -110,7 +110,8 @@ aber weder Stahl noch Ausgang. Ihre Felder bleiben nach der Entstehung drei voll
 Folgeticks gesperrt. Bei gemischten Ketten gewinnt freier Raum über Edelsteine.
 Auch Gegnerrichtungen und laufende Explosionen werden zurückgespult und gespeichert.
 Beide neuen Höhlen haben geprüfte Lösungen mit je 21 Ticks und 87,9 Sekunden Restzeit.
-Die lokale Spiel-/Grafikabnahme für S09 unter Windows 11 / Edge mit dem Competition Pro steht noch aus.
+Der Nutzer hat den S09-Zwischenstand unter Windows 11 / Edge mit dem Competition Pro am
+27. November 2026 mit „hat funktioniert“ bestätigt. Damit ist S09 abgenommen.
 
 ## Rückspulen
 

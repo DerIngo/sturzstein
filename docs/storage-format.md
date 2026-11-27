@@ -111,4 +111,5 @@ Freischaltungen, Umsortieren, Revisionen, beschädigte Daten, fremde Änderungen
 und Quotenfehler. Browserprüfungen decken `file://` und HTTP, Neuladen, einen neu geöffneten Tab,
 bewusste Wiederaufnahme ohne Offlinezeitabzug, Replayfortsetzung, Einstellungen und Fehlerdialoge ab.
 Speichern/Fortsetzen wurde für S08 vom Nutzer unter Windows 11 / Edge bestätigt.
-Die Erweiterung um laufende Explosionen ist automatisiert geprüft; ihre lokale S09-Abnahme steht noch aus.
+Die Erweiterung um laufende Explosionen ist automatisiert geprüft; der S09-Zwischenstand wurde
+am 27. November 2026 vom Nutzer abgenommen.
