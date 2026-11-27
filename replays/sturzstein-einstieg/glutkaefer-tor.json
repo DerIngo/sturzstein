@@ -1,0 +1,20 @@
+{
+  "formatVersion": 2,
+  "packId": "sturzstein-einstieg",
+  "levelId": "glutkaefer-tor",
+  "levelRevision": 1,
+  "ruleVersion": 1,
+  "seed": 241,
+  "usedRewind": false,
+  "inputs": [
+    { "ticks": 4, "direction": "right", "grab": false },
+    { "ticks": 1, "direction": "down", "grab": false },
+    { "ticks": 1, "direction": "right", "grab": false },
+    { "ticks": 1, "direction": "right", "grab": true },
+    { "ticks": 6, "direction": null, "grab": false },
+    { "ticks": 1, "direction": "down", "grab": false },
+    { "ticks": 3, "direction": "right", "grab": false },
+    { "ticks": 1, "direction": "down", "grab": false },
+    { "ticks": 3, "direction": "right", "grab": false }
+  ]
+}

@@ -11,6 +11,7 @@ S05 ergänzt Standard-Gamepads, ein Competition-Pro-Profil, Gerätewechsel und e
 S06 ergänzt tickgenaue Browseraufzeichnung, JSON-Export und eine DOM-unabhängige Replay-Lösungsprüfung.
 S07 ergänzt begrenzten Rückspulverlauf, Wiederherstellung nach Niederlage und verzweigte Replays.
 S08 ergänzt versionierte lokale Speicherung mit bewusster Wiederaufnahme, Fortschritt und getrennten Bestwerten.
+S09 ergänzt Wandfolge-Gegner, Explosionsketten, eigene animierte Sprites und zwei weitere Beispielhöhlen.
 Die konkreten Regeln stehen in [rules.md](rules.md), die Datenverträge in [level-format.md](level-format.md).
 Verifizierte Aufrufe stehen in der README und in den Projekt-Instructions.
 Der aktuelle Bearbeitungsstatus gehört in die GitHub-Issues, nicht in eine zweite Aufgabenliste hier.
@@ -45,7 +46,7 @@ Es ist weder eine automatische Verzeichnissuche noch ein allgemeines Plugin-Syst
 Klassische Skripte registrieren ihre APIs unter `globalThis.Sturzstein`. Reine Module exportieren
 zusätzlich dieselbe API per CommonJS für Node-Tests. Kein Bundler, keine transpilierten Quellen.
 
-| Datei/Bereich (S02–S08) | Vertrag |
+| Datei/Bereich (S02–S09) | Vertrag |
 |---|---|
 | `js/levels.js` | `parsePack(text, source)`, `validatePack(value, source)` liefern ein normalisiertes Pack oder werfen einen beschreibenden Fehler |
 | `js/simulation.js` | `createState(pack, levelId)` erzeugt einen neuen Zustand; `step(state, {direction, grab})` verändert ihn um genau einen Tick |
@@ -75,7 +76,8 @@ Ein JSON-serialisierbares Objekt enthält:
 - `status` (`playing`, `won`, `lost`) und `reason`;
 - `rngState` als 32-Bit-Zahl und Mechanikparameter;
 - `push` mit Zielindex, Richtung und bisheriger Haltedauer;
-- bei Erweiterung: Gegnerrichtungen, Explosionsalter/-ergebnis, Amöbenzustand und Wandtimer.
+- Gegner mit `direction`, Explosionen mit `remainingTicks` und `result`;
+- geplant für S10: Amöbenzustand und Wandtimer.
 
 Felsen/Edelsteine tragen `falling`. Die Daten enthalten keine DOM-Referenzen, Funktionen, Maps oder Sets.
 Kurzlebige Verarbeitungssätze innerhalb eines Ticks werden nicht gespeichert; Snapshots entstehen nur an Tickgrenzen.
@@ -86,6 +88,37 @@ auch wenn vor die Nutzung zurückgespult wird, und wird seit S08 mit der Partie 
 Das Starten erzeugt den Zustand immer neu aus unveränderten Leveldaten. Replays speichern Tick-Eingaben
 und Versionsidentität, keine Browserereignisse oder Millisekunden. Rückspulen kombiniert begrenzte
 vollständige JSON-Snapshots mit den dazwischenliegenden Eingaben (siehe S07 unten).
+
+## Gegner und Explosionen (S09)
+
+`beetle` folgt der linken, `butterfly` der rechten Wand. `direction` nutzt dieselben vier Richtungsnamen
+wie die Eingabe. Startorientierungen stammen aus den Levelzeichen. Bewegung erfolgt nur in freie Zellen,
+höchstens einmal pro Tick anhand einer Rastermomentaufnahme der Gegner-IDs nach der Fallphase.
+Kontaktprüfung nach Spieleraktion und nach jeder Gegnerbewegung löst betroffene Gegner sofort aus.
+
+Ketten werden innerhalb desselben Ticks über eine nach Rasterindex sortierte Warteschlange abgewickelt,
+nicht rekursiv. Erfasste Gegner werden sofort durch Explosionszellen ersetzt; ihre vorgemerkten Zentren
+und Ergebnisse bleiben bis zur Abarbeitung erhalten. IDs verhindern doppelte Auslösung.
+Pro betroffenem Feld entstehen `type: "explosion"`, eine neue ID, `remainingTicks: 3` und
+`result: "empty"` oder `"gem"`. Bestehende Explosionen behalten ID und Alter; nur das Ergebnis kann
+zu `"empty"` wechseln. Stahl schützt ausschließlich sein eigenes Feld; das Ausgangsfeld bleibt auch
+mit der gerade eintretenden Figur geschützt.
+
+Die Alterung läuft vor der Spieleraktion. Nach drei vollständigen gesperrten Folgeticks (Zähler 2, 1, 0)
+werden die Zellen im nächsten Tick aufgelöst. Neue Edelsteine erhalten neue IDs und `falling: false`;
+ein temporärer Verarbeitungssatz schließt sie für diesen Tick von Fall-/Abrollbewegungen aus.
+Alle dauerhaften Daten liegen im JSON-Raster; Replay und Rückspulverlauf brauchen keinen Sonderpfad.
+Der Speicherprüfer kennt die zusätzlichen Zellvarianten und erkennt ungültige Richtungen, Timer und Ergebnisse.
+
+Regelversion und `stateVersion` bleiben 1: Die neuen Mechaniken erfüllen den bereits festgelegten Vertrag
+und betreffen zuvor abgewiesene Levelzeichen. Bestehende gültige Level, Zustände und Replays bleiben unverändert.
+Das Einstiegspack erhält Revision 2 durch Ergänzung; die erste Höhle behält ihre ID, Revision und ihren Seed.
+
+Ein vorläufiger zyklischer Höhlenwechsel bietet die freigeschalteten Beispiele in Pack-Reihenfolge an.
+Vor Ersetzung der Partie steht ein Bestätigungsdialog; Abbrechen erhält auch eine noch nicht fortgesetzte
+Speicherung. Fortschritt und Bestwerte bleiben ID-basiert. Dies ersetzt nicht die vollständige Levelauswahl S12.
+Zwei Spritephasen je Gegner, eine Drehung zur Blickrichtung und vier Explosionsphasen machen die Zustände
+sichtbar, ohne Simulationsdaten oder Tickdauer zu verändern.
 
 ## Entwicklungswerkzeuge und Prüfungen
 

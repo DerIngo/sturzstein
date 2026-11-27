@@ -234,3 +234,86 @@ test("Änderungen einer anderen Registerkarte werden vor dem Schreiben erkannt u
   assert.match(first.message, /außerhalb dieser Partie geändert/);
   assert.equal(disk.text, latest);
 });
+
+for (const levelId of ["glutkaefer-tor", "kristallkette"]) {
+  test(`${levelId}: Replay, Speicherfortsetzung und Rückspulen erhalten Gegner und alle Explosionsphasen`, () => {
+    const solution = require(`../replays/sturzstein-einstieg/${levelId}.json`);
+    const state = Sim.createState(pack, levelId);
+    const recorder = new Replay.Recorder(pack, levelId);
+    const history = new RewindHistory(state);
+    const snapshots = [structuredClone(state)];
+    const disk = memory();
+    let save = store(disk).save;
+    let continued = null;
+    const explosionPhases = new Set();
+    for (const block of solution.inputs) for (let tick = 0; tick < block.ticks; tick++) {
+      const input = recorder.record(block);
+      Sim.step(state, input);
+      history.push(state, input);
+      snapshots.push(structuredClone(state));
+      if (continued) {
+        Sim.step(continued.state, continued.recorder.record(input));
+        assert.deepEqual(continued.state, state);
+      }
+      for (const cell of state.board) if (cell.type === "explosion") explosionPhases.add(cell.remainingTicks);
+      save.capture(pack, state, recorder);
+      save = store(disk).save;
+      assert.equal(save.blocked, false);
+      if (state.status === "playing") {
+        continued = save.restored;
+        assert.deepEqual(continued.state, state);
+        assert.deepEqual(continued.recorder.replay, recorder.replay);
+      }
+    }
+    assert.equal(state.status, "won");
+    assert.deepEqual([...explosionPhases], [3, 2, 1, 0]);
+    assert.deepEqual(Replay.play(pack, recorder.replay).state, state);
+    assert.ok(save.data.progress.find((entry) => entry.levelId === levelId).solved);
+    for (let tick = state.tick - 1; tick >= 0; tick--) {
+      const restored = history.back();
+      recorder.truncate(tick);
+      assert.deepEqual(restored, snapshots[tick]);
+      assert.deepEqual(Replay.play(pack, recorder.replay, { requireWin: false }).state, restored);
+    }
+  });
+}
+
+test("Gegner-/Explosionsdaten werden strikt validiert; Explosionstod bleibt fortsetzbar und rückspulbar", () => {
+  const levelId = "kristallkette";
+  const source = structuredClone(pack);
+  source.levels.find((entry) => entry.id === levelId).map[3] = "#...... +.....#";
+  const solution = require("../replays/sturzstein-einstieg/kristallkette.json");
+  let state = Sim.createState(source, levelId);
+  const recorder = new Replay.Recorder(source, levelId);
+  const history = new RewindHistory(state);
+  for (const block of solution.inputs.slice(0, 4)) for (let tick = 0; tick < block.ticks; tick++) {
+    const input = recorder.record(block);
+    Sim.step(state, input);
+    history.push(state, input);
+  }
+  const before = structuredClone(state);
+  const enterDanger = recorder.record({ direction: "down", grab: false });
+  Sim.step(state, enterDanger);
+  history.push(state, enterDanger);
+  assert.equal(state.status, "lost");
+  const session = { state, replay: recorder.replay };
+  assert.deepEqual(Storage.restoreSession(session, [source]).state, state);
+  for (const corrupt of [
+    (s) => { s.board.find(Sim.isEnemy).direction = "diagonal"; },
+    (s) => { s.board.find(Sim.isEnemy).direction = ["up"]; },
+    (s) => { s.board.find((cell) => cell.type === "explosion").remainingTicks = 4; },
+    (s) => { s.board.find((cell) => cell.type === "explosion").remainingTicks = -1; },
+    (s) => { s.board.find((cell) => cell.type === "explosion").result = "rock"; },
+  ]) {
+    const broken = structuredClone(session);
+    corrupt(broken.state);
+    assert.throws(() => Storage.restoreSession(broken, [source]), /Speicherdaten/);
+  }
+  state = history.back();
+  recorder.truncate(state.tick);
+  assert.deepEqual(state, before);
+  Sim.step(state, recorder.record({ direction: "left", grab: false }));
+  assert.equal(state.status, "playing");
+  assert.deepEqual(Storage.restoreSession({ state, replay: recorder.replay }, [source]).state, state);
+  assert.deepEqual(Replay.play(source, recorder.replay, { requireWin: false }).state, state);
+});

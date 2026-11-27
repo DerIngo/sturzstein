@@ -29,7 +29,8 @@ Fortschritt ist an Pack-ID und Level-ID gebunden, nicht an Listenposition oder P
 Gelöste Level bleiben gelöst, auch wenn sie in einer Pack-Aktualisierung verschoben werden.
 Gelöste sowie die ersten drei ungelösten Kampagnenlevel werden freigeschaltet;
 bereits gespeicherte Freischaltungen werden beim Umsortieren nicht zurückgenommen.
-Die eigentliche Levelauswahl folgt in S12; S08 speichert bereits die zugehörigen Freigaben.
+Seit S09 berücksichtigt ein vorläufiger zyklischer Höhlenwechsel diese Freigaben.
+Die vollständige Levelauswahl folgt in S12.
 
 Bestwerte sind zusätzlich an Levelrevision, Regelversion, Anfangsseed und Rückspulklasse gebunden.
 Ein Lauf ersetzt den passenden Bestwert nur bei höherer Punktzahl oder bei gleicher Punktzahl
@@ -54,6 +55,12 @@ Die Prüfung umfasst Pflichtfelder, Typen, Rastermaße, Objekt-IDs, Zelltypen, S
 Figur/Ausgang, Schubzustand, Mechanikparameter, Zufallszustand, Zähler und Punkte.
 Restticks müssen zur Levelzeit und Tickzahl passen; die Replaylänge muss genau der Tickzahl entsprechen.
 Neue Mechaniken müssen diesen Zustandsvalidator zusammen mit ihrer Speicher-/Versionsentscheidung erweitern.
+Seit S09 sind `beetle`/`butterfly` mit einer gültigen `direction` und `explosion` mit ganzzahligem
+`remainingTicks` von 0 bis 3 sowie `result: "empty"` oder `"gem"` zugelassen. Explosionen können nicht
+bei Tick 0 vorkommen; nach Explosionstod darf die gespeicherte Spielerzelle eine Explosion enthalten.
+Die zusätzlichen Zellvarianten ändern keine bisher gültigen Zustände, daher bleiben Speicherformat
+und Simulationszustandsversion 1. Ketten werden vollständig innerhalb eines Ticks abgewickelt;
+es gibt keine persistente, versteckte Explosionswarteschlange.
 
 Die gesamte Partie wird zum Laden nicht nochmals tickweise durchsimuliert: Das könnte bei einer großen,
 langen Höhle die Oberfläche blockieren. Geprüft werden Struktur und Zustandsinvarianten.
@@ -103,4 +110,5 @@ Node-Tests prüfen Rundlauf und Weiterführung vollständiger Zustände, getrenn
 Freischaltungen, Umsortieren, Revisionen, beschädigte Daten, fremde Änderungen, verweigerten Zugriff
 und Quotenfehler. Browserprüfungen decken `file://` und HTTP, Neuladen, einen neu geöffneten Tab,
 bewusste Wiederaufnahme ohne Offlinezeitabzug, Replayfortsetzung, Einstellungen und Fehlerdialoge ab.
-Echte Speicherprüfung unter Windows 11 / Edge bleibt bis zur Nutzerabnahme offen.
+Speichern/Fortsetzen wurde für S08 vom Nutzer unter Windows 11 / Edge bestätigt.
+Die Erweiterung um laufende Explosionen ist automatisiert geprüft; ihre lokale S09-Abnahme steht noch aus.

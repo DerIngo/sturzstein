@@ -110,5 +110,8 @@ Alle Wege verwenden dieselbe DOM-unabhängige Simulation wie das Spiel.
 
 Bei Erfolg wird je Replay Ergebnis, Tickzahl, Restzeit, Punktzahl und Rückspulkennzeichnung ausgegeben; Exitstatus ist 0.
 Das mitgelieferte Beispiel gewinnt nach 38 Ticks mit 116,2 Sekunden Restzeit und 146 Punkten.
+Seit S09 liegen außerdem `glutkaefer-tor.json` und `kristallkette.json` im selben Replayverzeichnis.
+Beide gewinnen nach 21 Ticks mit 87,9 Sekunden Restzeit; die Kristallkette erfordert erst erzeugte Edelsteine.
+Gegnerbewegungen und Explosionen entstehen aus derselben Simulation, ohne zusätzliche Replayfelder.
 Tests vergleichen außerdem den vollständigen Zustand an jeder Tickgrenze über wiederholte Läufe
 sowie heruntergeladene Browseraufzeichnungen mit ihrem tatsächlichen Endzustand.

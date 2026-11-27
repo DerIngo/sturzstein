@@ -38,8 +38,9 @@ Unbekannte Felder werden abgewiesen, damit Schreibfehler nicht still andere Rege
 | `M` | Umwandlungswand |
 
 Startzustände wie Explosion oder fallender Fels werden nicht im Kartenformat angeboten.
-Sie entstehen durch die Simulation. Mechaniken von S09/S10 werden bis zur Implementierung mit
-einer ausdrücklichen Fehlermeldung abgewiesen, auch wenn die Symboltabelle sie bereits beschreibt.
+Sie entstehen durch die Simulation. Seit S09 werden alle acht Gegnersymbole einschließlich
+Startorientierung unterstützt. Amöbe und Umwandlungswand werden bis S10 mit einer ausdrücklichen
+Fehlermeldung abgewiesen, auch wenn die Symboltabelle sie bereits beschreibt.
 
 ## Grenzen und Parameter
 

@@ -7,6 +7,7 @@
   const secondary = get("secondary");
   const replayExport = get("replay-export");
   const toggleHints = get("toggle-hints");
+  const nextLevel = get("next-level");
   const storageReset = get("storage-reset");
   const status = get("status");
   const app = globalThis.Sturzstein;
@@ -26,12 +27,25 @@
   let saveStore;
   let started = false;
   let confirmation = "restart";
+  let pendingLevel = null;
 
   function menuButtons() {
-    return [primary, secondary, replayExport, toggleHints, storageReset].filter((button) => !button.hidden && !button.disabled);
+    return [primary, secondary, replayExport, toggleHints, nextLevel, storageReset].filter((button) => !button.hidden && !button.disabled);
+  }
+  function nextPlayableLevel() {
+    const current = pack.levels.findIndex((entry) => entry.id === level.id);
+    for (let offset = 1; offset < pack.levels.length; offset++) {
+      const candidate = pack.levels[(current + offset) % pack.levels.length];
+      if (saveStore.data.progress.some((entry) => entry.packId === pack.id && entry.levelId === candidate.id && entry.unlocked)) return candidate;
+    }
+    return null;
   }
   function updateProfile() {
     if (!saveStore) return;
+    get("level-name").textContent = `${String(pack.levels.findIndex((entry) => entry.id === level.id) + 1).padStart(2, "0")} · ${level.name}`;
+    const next = nextPlayableLevel();
+    nextLevel.hidden = !next || !["start", "resume", "paused", "lost", "won"].includes(screen);
+    nextLevel.textContent = next ? `Nächste Höhle: ${next.name} …` : "Keine weitere Höhle freigeschaltet";
     get("input-hints").hidden = !saveStore.data.settings.showHints;
     toggleHints.textContent = `Bedienhinweise: ${saveStore.data.settings.showHints ? "an" : "aus"}`;
     storageReset.hidden = !saveStore.blocked || !["start", "resume", "paused", "lost", "won"].includes(screen);
@@ -70,7 +84,9 @@
         : "Dein letzter Zustand ist geladen. Zeit vergeht erst nach deiner Bestätigung. Der Rückspulverlauf beginnt hier neu.",
         state?.status === "lost" ? "Letzten Versuch anzeigen" : "Gespeicherte Partie fortsetzen"],
       paused: ["Pause", message || "Die Höhle wartet. Zeit und Physik sind angehalten.", "Fortsetzen"],
-      confirm: confirmation === "storage"
+      confirm: confirmation === "level"
+        ? ["Höhle wechseln?", `${pendingLevel.name}: ${pendingLevel.description} Eine vorhandene Partie wird ersetzt; Fortschritt und Bestwerte bleiben erhalten.`, "Höhle betreten"]
+        : confirmation === "storage"
         ? ["Speicherdaten ersetzen?", "Vorhandene Browserdaten werden durch die Daten dieser Sitzung ersetzt. Beschädigte oder inkompatible Partien gehen verloren. Nicht lesbare Bestwerte und Einstellungen können nicht übernommen werden.", "Daten ersetzen"]
         : ["Neu beginnen?", "Die aktuelle Partie wird verworfen. Dieselbe Höhle startet mit voller Zeit neu.", "Neu starten"],
       won: ["Ausgang erreicht!", `Du hast die Höhle geschafft. ${state?.score || 0} Punkte – gut gemacht!`, "Noch einmal"],
@@ -131,6 +147,7 @@
       show(beforeConfirm);
       return;
     }
+    if (screen === "confirm" && confirmation === "level") level = pendingLevel;
     if (screen === "start" || screen === "won" || screen === "lost" || screen === "confirm") restart();
     else if (screen === "paused") show("playing");
   }
@@ -215,6 +232,13 @@
     saveStore.data.settings.showHints = !saveStore.data.settings.showHints;
     saveStore.persist();
     updateProfile();
+  });
+  nextLevel.addEventListener("click", () => {
+    pendingLevel = nextPlayableLevel();
+    if (!pendingLevel) throw new Error("Keine weitere freigeschaltete Höhle verfügbar.");
+    beforeConfirm = screen;
+    confirmation = "level";
+    show("confirm");
   });
   storageReset.addEventListener("click", () => {
     beforeConfirm = screen;
@@ -309,7 +333,6 @@
       if (state.status !== "playing") show(state.status);
       else if (state.tick % 10 === 0) saveCurrent();
     }, pauseForInterruption);
-    get("level-name").textContent = `${String(pack.levels.findIndex((entry) => entry.id === level.id) + 1).padStart(2, "0")} · ${level.name}`;
     show(saveStore.restored ? "resume" : "start");
     requestAnimationFrame(frame);
   }

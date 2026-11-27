@@ -16,8 +16,9 @@ async function downloadReplay(page, activate = () => page.locator("#replay-expor
   const pending = page.waitForEvent("download");
   await activate();
   const download = await pending;
-  expect(download.suggestedFilename()).toBe("sturzstein-einstieg--erste-schritte.replay.json");
-  return Replay.parseReplay(await fs.promises.readFile(await download.path(), "utf8"));
+  const replay = Replay.parseReplay(await fs.promises.readFile(await download.path(), "utf8"));
+  expect(download.suggestedFilename()).toBe(`${replay.packId}--${replay.levelId}.replay.json`);
+  return replay;
 }
 
 async function observeSimulation(page) {
@@ -137,7 +138,7 @@ for (const protocol of ["file", "http"]) {
     }
     await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
     await expect(page.locator("#gems")).toHaveText("3 / 3");
-    await expect(page.locator("#progress-status")).toContainText("1 / 1 gelöst");
+    await expect(page.locator("#progress-status")).toContainText(`1 / ${pack.levels.length} gelöst`);
     expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).bests[0].usedRewind, storageKey)).toBe(false);
     expect(await page.evaluate(() => window.testState.status)).toBe("won");
     const wonReplay = await downloadReplay(page);
@@ -247,6 +248,82 @@ for (const protocol of ["file", "http"]) {
     await page.locator("#primary").click();
     await move("left", 1);
     expect(await page.evaluate(() => window.testState.status)).toBe("playing");
+  });
+
+  test(`Gegnerhöhlen über ${protocol}: Wechsel, Explosionskette, Rückspulen, Fortsetzen und Siege`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2030-01-01T00:00:01Z"));
+    await page.goto(protocol === "file" ? pathToFileURL(path.join(root, "index.html")).href : origin);
+    await expect(page.locator("#primary")).toBeEnabled();
+    await observeSimulation(page);
+    await page.locator("#next-level").click();
+    await expect(page.locator("#dialog-title")).toHaveText("Höhle wechseln?");
+    await page.locator("#secondary").click();
+    await expect(page.locator("#level-name")).toContainText(pack.levels[0].name);
+    await expect(page.locator("#dialog-title")).toHaveText("Ein Funkeln im Dunkeln");
+
+    for (const levelId of ["glutkaefer-tor", "kristallkette"]) {
+      const solution = require(`../../replays/sturzstein-einstieg/${levelId}.json`);
+      const commands = solution.inputs.flatMap((block) => Array.from({ length: block.ticks }, () => ({
+        direction: block.direction, grab: block.grab,
+      })));
+      const level = pack.levels.find((entry) => entry.id === levelId);
+      await page.locator("#next-level").click();
+      await expect(page.locator("#dialog-text")).toContainText(level.description);
+      await page.locator("#primary").click();
+      await expect(page.locator("#level-name")).toContainText(level.name);
+      async function tick(input) {
+        const key = { up: "ArrowUp", right: "ArrowRight", down: "ArrowDown", left: "ArrowLeft" }[input.direction];
+        if (input.grab) await page.keyboard.down("Space");
+        if (key) await page.keyboard.down(key);
+        await advanceTicks(page, 1);
+        if (key) await page.keyboard.up(key);
+        if (input.grab) await page.keyboard.up("Space");
+      }
+      for (const input of commands.slice(0, 9)) await tick(input);
+      const explosion = await page.evaluate(() => window.testState);
+      expect(explosion.board.some((cell) => cell.type === "explosion")).toBe(true);
+      await page.keyboard.down("KeyZ");
+      await rewindTicks(page, 1);
+      expect(await page.evaluate(() => window.testState.board.some((cell) => cell.type === "explosion"))).toBe(false);
+      await page.keyboard.up("KeyZ");
+      await page.clock.runFor(16);
+      await tick(commands[8]);
+      expect(await page.evaluate(() => window.testState)).toEqual(explosion);
+      await page.keyboard.press("KeyP");
+      const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).session, storageKey);
+      expect(saved.state).toEqual(explosion);
+      expect(saved.replay.usedRewind).toBe(true);
+      await page.locator("#next-level").click();
+      await page.locator("#secondary").click();
+      await expect(page.locator("#dialog-title")).toHaveText("Pause");
+      expect(await page.evaluate(() => window.testState)).toEqual(explosion);
+      await page.reload();
+      await expect(page.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+      await expect(page.locator("#level-name")).toContainText(level.name);
+      await expect(page.locator("#rewind-time")).toHaveText("0,0 s");
+      await page.locator("#next-level").click();
+      await page.locator("#secondary").click();
+      await expect(page.locator("#dialog-title")).toHaveText("Partie fortsetzen?");
+      expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).session, storageKey)).toEqual(saved);
+      await observeSimulation(page);
+      await page.locator("#primary").click();
+      await page.clock.runFor(128);
+      const expected = structuredClone(explosion);
+      Sim.step(expected, commands[9]);
+      expect(await page.evaluate(() => window.testState)).toEqual(expected);
+      for (const input of commands.slice(10)) await tick(input);
+      await expect(page.locator("#dialog-title")).toHaveText("Ausgang erreicht!");
+      const replay = await downloadReplay(page);
+      expect(replay.levelId).toBe(levelId);
+      expect(replay.usedRewind).toBe(true);
+      expect(Replay.play(pack, replay).state).toEqual(await page.evaluate(() => window.testState));
+      expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).session, storageKey)).toBe(null);
+    }
+    await expect(page.locator("#progress-status")).toContainText("2 / 3 gelöst");
+    expect(errors).toEqual([]);
   });
 
   test(`Speicherung über ${protocol}: Neuladen und neuer Tab erhalten Zustand, Replay und Einstellungen ohne Offlinezeit`, async ({ page }) => {

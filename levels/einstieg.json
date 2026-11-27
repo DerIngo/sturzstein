@@ -3,8 +3,8 @@
   "id": "sturzstein-einstieg",
   "title": "Die erste Tiefe",
   "author": "Sturzstein-Projekt",
-  "revision": 1,
-  "source": "Eigene, für Sturzstein entworfene Höhle.",
+  "revision": 2,
+  "source": "Eigene, für Sturzstein entworfene Höhlen.",
   "license": "Eigener Projektinhalt; keine Fremdlevel oder Originalassets.",
   "levels": [
     {
@@ -32,6 +32,54 @@
         "#................X.#",
         "#..................#",
         "####################"
+      ]
+    },
+    {
+      "id": "glutkaefer-tor",
+      "revision": 1,
+      "ruleVersion": 1,
+      "name": "Das Glutkäfer-Tor",
+      "description": "Glutkäfer folgen der linken Wand. Sammle den Edelstein. Grabe von links die Erde direkt unter dem Fels mit Aktion + rechts. Bleibe dort sicher stehen und beobachte den Steinschlag. Bei einem Treffer öffnet die 3×3-Explosion die Mauern. Erst danach durchgehen; sonst neu versuchen.",
+      "difficulty": 2,
+      "width": 15,
+      "height": 9,
+      "timeLimit": 90,
+      "quota": 1,
+      "seed": 241,
+      "map": [
+        "###############",
+        "#@*...#O##r  ##",
+        "#.......##   ##",
+        "#.....+ +.....#",
+        "#..... l ...X.#",
+        "#..... + .....#",
+        "#.....   .....#",
+        "#.....###.....#",
+        "###############"
+      ]
+    },
+    {
+      "id": "kristallkette",
+      "revision": 1,
+      "ruleVersion": 1,
+      "name": "Die Kristallkette",
+      "description": "Kristallfalter folgen der rechten Wand. Grabe von links die Erde unter dem Fels mit Aktion + rechts. Warte dort sicher auf einen Treffer und die Explosionskette. Sammle danach am oberen Rand mindestens drei neue Edelsteine und gehe zum Ausgang. Ein verfehlter Steinschlag lässt sich zurückspulen.",
+      "difficulty": 2,
+      "width": 15,
+      "height": 9,
+      "timeLimit": 90,
+      "quota": 3,
+      "seed": 389,
+      "map": [
+        "###############",
+        "#@....#O##R  ##",
+        "#.......##   ##",
+        "#.....+ +.....#",
+        "#..... R ...X.#",
+        "#..... +D.....#",
+        "#.....   .....#",
+        "#.....###.....#",
+        "###############"
       ]
     }
   ]

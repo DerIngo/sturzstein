@@ -86,12 +86,21 @@
     for (const [index, cell] of state.board.entries()) {
       const path = `Zustand.board[${index}]`;
       const falling = cell?.type === "rock" || cell?.type === "gem";
-      object(cell, path, ["type", "id", ...(falling ? ["falling"] : [])]);
-      if (!["empty", "earth", "steel", "wall", "rock", "gem", "player", "exit"].includes(cell.type)) fail(path, "Unbekannter Zelltyp.");
+      const enemy = cell && Simulation.isEnemy(cell);
+      const explosion = cell?.type === "explosion";
+      object(cell, path, ["type", "id", ...(falling ? ["falling"] : []),
+        ...(enemy ? ["direction"] : []), ...(explosion ? ["remainingTicks", "result"] : [])]);
+      if (!["empty", "earth", "steel", "wall", "rock", "gem", "player", "exit", "beetle", "butterfly", "explosion"].includes(cell.type)) fail(path, "Unbekannter Zelltyp.");
       integer(cell.id, `${path}.id`, cell.type === "empty" ? 0 : 1, cell.type === "empty" ? 0 : state.nextId - 1);
       if (cell.id && ids.has(cell.id)) fail(path, "Doppelte Objekt-ID.");
       if (cell.id) ids.add(cell.id);
       if (falling) boolean(cell.falling, `${path}.falling`);
+      if (enemy && (typeof cell.direction !== "string" || !Object.hasOwn(Simulation.directions, cell.direction))) fail(`${path}.direction`, "Ungültige Gegnerrichtung.");
+      if (explosion) {
+        integer(cell.remainingTicks, `${path}.remainingTicks`, 0, 3);
+        if (!["empty", "gem"].includes(cell.result)) fail(`${path}.result`, "Ungültiges Explosionsergebnis.");
+        if (state.tick === 0) fail(path, "Explosion vor dem ersten Tick.");
+      }
       if (initial.board[index].type === "steel" && (cell.type !== "steel" || cell.id !== initial.board[index].id)) fail(path, "Stahlwand wurde verändert.");
       if (cell.type === "steel" && initial.board[index].type !== "steel") fail(path, "Zusätzliche Stahlwand.");
       if (cell.type === "player") {
@@ -105,7 +114,7 @@
     if (state.board[state.exitIndex].type !== "exit" && !lateExit) fail("Zustand.exitIndex", "Ausgang fehlt.");
     if (lateExit && state.collected < state.quota) fail("Zustand.exitIndex", "Geschlossener Ausgang wurde betreten.");
     if ((state.status === "playing" && players !== 1) || players > 1) fail("Zustand.board", "Ungültige Spieleranzahl.");
-    if (!players && !["rock", "gem"].includes(state.board[state.playerIndex].type)) fail("Zustand.playerIndex", "Trefferobjekt fehlt.");
+    if (!players && !["rock", "gem", "explosion"].includes(state.board[state.playerIndex].type)) fail("Zustand.playerIndex", "Trefferobjekt fehlt.");
     if (state.status === "lost" && players === 1 && state.remainingTicks !== 0) fail("Zustand", "Niederlage ohne Treffer oder Zeitablauf.");
     if (state.push !== null) {
       object(state.push, "Zustand.push", ["index", "direction", "ticks"]);

@@ -5,16 +5,16 @@ Eigene Level, Grafiken und Regeln; keine Originalassets oder kopierten Originall
 
 ## Aktueller Umfang
 
-Der spielbare Stand enthält eine eigene Höhle mit Graben, Sammeln, Schieben,
+Der spielbare Stand enthält drei eigene Höhlen mit Graben, Sammeln, Schieben,
 Fall-/Abrollphysik, Zeitlimit, Sieg/Niederlage, Pause und Neustart.
 Seit S05 sind Standard-Gamepads und der Competition Pro (040b:6533) sowie geräteabhängige Bedienhinweise integriert.
 Seit S06 werden Partien als tickgenaue Replays aufgezeichnet und können heruntergeladen und geprüft werden.
 Seit S07 lässt sich der vollständige Spielzustand mindestens zehn Sekunden zurückspulen, auch nach einer Niederlage.
 Seit S08 bleiben Partie, Fortschritt, getrennte Bestwerte und die Einstellung für Bedienhinweise lokal gespeichert.
+Seit S09 sind Glutkäfer, Kristallfalter und verkettete 3×3-Explosionen integriert.
 Die vollständigen Produktanforderungen stehen in `PROMPT.md`.
 Arbeitspakete und Abhängigkeiten: `ISSUE_PLAN.md`, aktueller Stand: GitHub-Issues.
-Gegner/Sondermechaniken,
-Pack-Import und die vollständige Kampagne sind noch nicht implementiert.
+Amöbe, Umwandlungswand, Pack-Import und die vollständige Kampagne sind noch nicht implementiert.
 
 ## Start
 
@@ -86,6 +86,31 @@ Bei fehlender/blockierter Gamepad-API erscheinen Hinweise unter dem Spielfeld. I
 Einschränkungen unter `file://` den lokalen Webserver oder die HTTPS-Seite verwenden.
 Die Tastatur bleibt nutzbar. Die Tonaktion (M) ist vorbereitet und meldet ausdrücklich,
 dass Soundeffekte und Tonsteuerung erst in S14 hinzukommen.
+
+## Gegnerhöhlen ausprobieren
+
+Im Start-, Fortsetzen-, Pause- oder Ergebnisdialog führt **„Nächste Höhle: …“** zyklisch durch
+die freigeschalteten Höhlen. Ein Wechsel wird bestätigt, bevor er die aktuelle Partie ersetzt;
+„Zurück“ erhält sie unverändert. Alle drei Beispielhöhlen sind anfangs freigeschaltet.
+Die vollständige Levelauswahl folgt in S12.
+
+- **Das Glutkäfer-Tor:** Orange Käfer folgen der linken Wand. Ein fallender Fels auf einem Käfer
+  löst eine Explosion aus, die Mauern zerstört und freien Raum hinterlässt.
+- **Die Kristallkette:** Violette Falter mit breiten Flügeln folgen der rechten Wand. Ihre
+  Explosionen hinterlassen Edelsteine; ein erfasster Gegner löst seine eigene Explosion aus.
+
+Die Einführung beim Höhlenwechsel erklärt den Steinschlag. Vom Platz links neben der Erde
+direkt unter dem Fels lässt sie sich mit Aktion + rechts entfernen. Dort bleibt die Figur sicher;
+erst nach dem Ende einer erfolgreichen Explosion durch die geöffneten Mauern gehen.
+Ein verfehlter Steinschlag kann zurückgespult werden. Es ist kein sofortiges Ausweichmanöver nötig.
+Die beweglichen Figuren rechts oben zeigen die jeweilige Wandfolge zusätzlich.
+
+Orthogonaler Gegnerkontakt ist tödlich. Explosionen erfassen auch diagonale Nachbarfelder,
+aber weder Stahl noch Ausgang. Ihre Felder bleiben nach der Entstehung drei vollständige
+Folgeticks gesperrt. Bei gemischten Ketten gewinnt freier Raum über Edelsteine.
+Auch Gegnerrichtungen und laufende Explosionen werden zurückgespult und gespeichert.
+Beide neuen Höhlen haben geprüfte Lösungen mit je 21 Ticks und 87,9 Sekunden Restzeit.
+Die lokale Spiel-/Grafikabnahme für S09 unter Windows 11 / Edge mit dem Competition Pro steht noch aus.
 
 ## Rückspulen
 

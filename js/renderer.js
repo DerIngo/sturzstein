@@ -1,6 +1,7 @@
 (function (root) {
   "use strict";
-  const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "player"];
+  const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "player",
+    "beetle", "butterfly", "beetleStep", "butterflyStep", "explosion3", "explosion2", "explosion1", "explosion0"];
   const clamp = (n, min, max) => Math.max(min, Math.min(n, max));
   class Renderer {
     constructor(canvas, image) {
@@ -47,10 +48,18 @@
         this.previous = previous;
         this.positions = new Map(previous.board.flatMap((cell, index) => cell.id ? [[cell.id, index]] : []));
       }
-      const sprite = (type, x, y) => {
+      const sprite = (type, x, y, direction) => {
         const index = names.indexOf(type);
         if (index < 0) throw new Error(`Grafik für ${type} fehlt.`);
-        ctx.drawImage(this.image, index * 16, 0, 16, 16, Math.round(ox + x * tile), Math.round(oy + y * tile), tile, tile);
+        const px = Math.round(ox + x * tile);
+        const py = Math.round(oy + y * tile);
+        if (direction) {
+          ctx.save();
+          ctx.translate(px + tile / 2, py + tile / 2);
+          ctx.rotate(["up", "right", "down", "left"].indexOf(direction) * Math.PI / 2);
+          ctx.drawImage(this.image, index * 16, 0, 16, 16, -tile / 2, -tile / 2, tile, tile);
+          ctx.restore();
+        } else ctx.drawImage(this.image, index * 16, 0, 16, 16, px, py, tile, tile);
       };
       const left = Math.max(0, Math.floor(-ox / tile) - 1);
       const top = Math.max(0, Math.floor(-oy / tile) - 1);
@@ -64,11 +73,14 @@
         const old = this.positions.get(cell.id);
         let px = x;
         let py = y;
-        if (old !== undefined && ["player", "rock", "gem"].includes(cell.type)) {
+        const enemy = root.Sturzstein.Simulation.isEnemy(cell);
+        if (old !== undefined && (["player", "rock", "gem"].includes(cell.type) || enemy)) {
           px = old % state.width + (x - old % state.width) * alpha;
           py = Math.floor(old / state.width) + (y - Math.floor(old / state.width)) * alpha;
         }
-        sprite(cell.type, px, py);
+        const type = cell.type === "explosion" ? `explosion${cell.remainingTicks}`
+          : enemy && state.tick % 2 ? `${cell.type}Step` : cell.type;
+        sprite(type, px, py, enemy ? cell.direction : null);
       }
     }
   }

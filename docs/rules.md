@@ -1,8 +1,8 @@
 # Sturzstein-Regeln, Version 1
 
 Entwurf aus S01 für eine eigenständige Umsetzung, keine C64-Emulation.
-Das vollständige Regelwerk ist das Implementierungsziel; Gegner/Explosionen folgen in S09,
-Amöbe und Umwandlungswand in S10. Noch fehlende Mechaniken werden beim Laden abgewiesen.
+Das vollständige Regelwerk ist das Implementierungsziel; Gegner/Explosionen sind seit S09 implementiert,
+Amöbe und Umwandlungswand folgen in S10. Noch fehlende Mechaniken werden beim Laden abgewiesen.
 
 ## Zeit, Bewegung und Wertung
 
@@ -83,6 +83,9 @@ Erfasste Gegner lösen ihre eigene Explosion aus, geordnet nach Rasterindex. Jed
 Explosionszellen sind drei vollständige Ticks unpassierbar; danach entsteht freier Raum oder ein ruhender
 Edelstein. Überlappungen verlängern nicht die Laufzeit; bei konkurrierenden Ergebnissen hat freier Raum Vorrang.
 Neu explodierende Zellen werden frühestens im nächsten Tick gealtert.
+Präzise Tickgrenzen: Entstehung bei Tick N mit `remainingTicks: 3`; bei N+1, N+2 und N+3
+bleibt die Zelle mit Zähler 2, 1 bzw. 0 gesperrt. Auflösung erfolgt zu Beginn von N+4.
+Neu entstandene Edelsteine sind ruhend und werden erst im nächsten Tick von der Fallphase verarbeitet.
 Kontakt mit Amöbe löst keine zusätzliche Spezialexplosion aus (bewusste Vereinfachung).
 
 ## Amöbe (S10)
@@ -130,6 +133,7 @@ Bei mehrschichtiger Wand ist nur die unmittelbare Ausgabeposition maßgeblich; k
 | Amöbe gleichzeitig eingeschlossen und zu groß | Felsen statt Edelsteine |
 | Wand wird bei blockierter Ausgabe getroffen | Aktivierung und Verbrauch, keine Ausgabe |
 
-Die Szenarien sind die Grundlage der späteren automatisierten Tests, noch keine ausgeführten Codeprüfungen.
+Grundregeln sowie Gegner-/Explosionsfälle sind seit S03 bzw. S09 automatisiert geprüft.
+Die Amöben-/Umwandlungswand-Szenarien bleiben Prüfvorgaben für S10.
 Historische Referenzen stehen in `PROMPT.md`. Scanfolge, deterministisches Schieben, Prioritäten und
 Sonderregeln hier sind eigene Festlegungen; Fremdlevel-Kompatibilität wird nicht behauptet.

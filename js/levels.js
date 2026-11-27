@@ -3,7 +3,7 @@
 
   const limits = Object.freeze({ bytes: 1048576, levels: 100, side: 128, cells: 65536 });
   const symbols = " .#+@O*XurdlURDLAM";
-  const supported = " .#+@O*X";
+  const supported = " .#+@O*XurdlURDL";
   const defaults = Object.freeze({ amoebaGrowthTicks: 10, amoebaMaxCells: 200, magicWallTicks: 200 });
 
   function validatePack(value, source = "Levelpack") {

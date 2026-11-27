@@ -4,7 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const zlib = require("node:zlib");
 const size = 16;
-const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "player"];
+const names = ["empty", "earth", "steel", "wall", "rock", "gem", "exit", "openExit", "player",
+  "beetle", "butterfly", "beetleStep", "butterflyStep", "explosion3", "explosion2", "explosion1", "explosion0"];
 const width = size * names.length;
 const pixels = Buffer.alloc(width * size * 4);
 let offset = 0;
@@ -114,6 +115,46 @@ for (const [index, name] of names.entries()) {
     rect(5, 1, 6, 2, "f5d686");
     rect(3, 4, 11, 1, "8c603c");
     rect(8, 2, 3, 3, "fff4c2");
+  }
+  if (name.startsWith("beetle")) {
+    const step = name === "beetleStep" ? 1 : 0;
+    for (const y of [6, 9, 12]) {
+      rect(2, y - step, 3, 1, "b95b45");
+      rect(11, y + step, 3, 1, "b95b45");
+    }
+    rect(4, 5, 8, 9, "702f3e");
+    rect(5, 5, 6, 8, "df6d44");
+    rect(7, 5, 2, 9, "ffcc74");
+    rect(5, 2, 6, 4, "9e4350");
+    rect(4, 1, 1, 2, "f3b96c");
+    rect(11, 1, 1, 2, "f3b96c");
+    pixel(6, 3, "fff0ba");
+    pixel(9, 3, "fff0ba");
+  }
+  if (name.startsWith("butterfly")) {
+    const folded = name === "butterflyStep";
+    for (let y = 3; y < 14; y++) {
+      const span = (y < 8 ? y - 1 : 14 - y) - Number(folded);
+      for (let x = 1; x <= span; x++) {
+        pixel(7 - x, y, y < 8 ? "bfa5ff" : "647fdf");
+        pixel(8 + x, y, y < 8 ? "bfa5ff" : "647fdf");
+      }
+    }
+    rect(7, 3, 2, 11, "d2fff1");
+    rect(6, 1, 1, 3, "79c9e2");
+    rect(9, 1, 1, 3, "79c9e2");
+    pixel(5, 6, "f3e5ff");
+    pixel(10, 6, "f3e5ff");
+  }
+  if (name.startsWith("explosion")) {
+    const age = Number(name.at(-1));
+    const radius = 3 + age;
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const distance = Math.abs(x - 7) + Math.abs(y - 7);
+      if (distance <= radius + (x % 3 === 0 || y % 3 === 0 ? 2 : 0)) {
+        pixel(x, y, distance < radius / 2 ? "fff3b5" : distance < radius ? "f2a04b" : "aa4250");
+      }
+    }
   }
 }
 function crc32(data) {
